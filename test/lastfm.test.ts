@@ -64,6 +64,25 @@ test("loads personal artist and track scrobble counts", async () => {
   assert.deepEqual(requestedMethods.sort(), ["artist.getInfo", "track.getInfo"]);
 });
 
+test("keeps an available detail count when the other Last.fm lookup fails", async () => {
+  const fetcher = (async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+    return url.searchParams.get("method") === "artist.getInfo"
+      ? Response.json({ artist: { stats: { userplaycount: "108" } } })
+      : Response.json({ error: 6, message: "Track not found" });
+  }) as typeof fetch;
+
+  const result = await fetchDetailedScrobbles({
+    apiKey: "key",
+    username: "lance",
+    artist: "The Japanese House",
+    track: "i saw you in a dream",
+    fetcher
+  });
+
+  assert.deepEqual(result, { artistScrobbles: 108, trackScrobbles: null });
+});
+
 test("marks the most recent scrobble as not currently playing", () => {
   const result = normalizeRecentTracks({
     recenttracks: {

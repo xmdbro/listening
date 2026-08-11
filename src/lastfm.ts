@@ -4,6 +4,7 @@ import { getSpotifyArtworkFromEnvironment } from "./spotify";
 const LASTFM_ENDPOINT = "https://ws.audioscrobbler.com/2.0/";
 const CACHE_TTL_MS = 10_000;
 const DETAILS_CACHE_TTL_MS = 10 * 60 * 1000;
+const INCOMPLETE_DETAILS_CACHE_TTL_MS = 60 * 1000;
 
 interface LastFmImage {
   "#text"?: unknown;
@@ -174,10 +175,17 @@ async function getDetailedScrobbles(
   const cached = detailedScrobblesCache.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached;
 
-  const result = await fetchDetailedScrobbles({ apiKey, username, artist, track });
+  const fresh = await fetchDetailedScrobbles({ apiKey, username, artist, track });
+  const result = {
+    artistScrobbles: fresh.artistScrobbles ?? cached?.artistScrobbles ?? null,
+    trackScrobbles: fresh.trackScrobbles ?? cached?.trackScrobbles ?? null
+  };
+  const complete = result.artistScrobbles !== null && result.trackScrobbles !== null;
   detailedScrobblesCache.set(key, {
     ...result,
-    expiresAt: Date.now() + DETAILS_CACHE_TTL_MS
+    expiresAt: Date.now() + (
+      complete ? DETAILS_CACHE_TTL_MS : INCOMPLETE_DETAILS_CACHE_TTL_MS
+    )
   });
   return result;
 }
