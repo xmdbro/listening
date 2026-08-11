@@ -6,7 +6,7 @@
   "description": "A personal now-playing display and embeddable Last.fm status card.",
   "scripts": {
     "build": "tsc --noEmit && vite build",
-    "dev": "node --env-file-if-exists=.env --watch --import tsx src/server.ts",
+    "dev": "node --env-file-if-exists=.env --import tsx src/server.ts",
     "start": "node --env-file-if-exists=.env --import tsx src/server.ts",
     "test": "node --import tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit"
