@@ -1,4 +1,6 @@
-function escapeXml(value) {
+import type { NowPlayingData } from "./types";
+
+function escapeXml(value: unknown): string {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -7,19 +9,19 @@ function escapeXml(value) {
     .replaceAll("'", "&apos;");
 }
 
-function truncate(value, length) {
+function truncate(value: unknown, length: number): string {
   const string = String(value ?? "");
   return string.length > length ? `${string.slice(0, length - 3)}...` : string;
 }
 
-export function renderNowPlayingSvg(data) {
-  const hasTrack = Boolean(data?.track);
-  const title = hasTrack ? truncate(data.track.name, 42) : "Nothing playing right now";
+export function renderNowPlayingSvg(data: NowPlayingData): string {
+  const hasTrack = Boolean(data.track);
+  const title = hasTrack ? truncate(data.track?.name, 42) : "Nothing playing right now";
   const artist = hasTrack
-    ? truncate(data.track.artist, 48)
-    : `last.fm/user/${data?.username || "unknown"}`;
-  const status = data?.isPlaying ? "NOW PLAYING" : "LAST PLAYED";
-  const statusColor = data?.isPlaying ? "#55d187" : "#8b8b96";
+    ? truncate(data.track?.artist, 48)
+    : `last.fm/user/${data.username || "unknown"}`;
+  const status = data.isPlaying ? "NOW PLAYING" : "LAST PLAYED";
+  const statusColor = data.isPlaying ? "#55d187" : "#8b8b96";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="480" height="100" viewBox="0 0 480 100" role="img" aria-labelledby="title description">
@@ -32,3 +34,4 @@ export function renderNowPlayingSvg(data) {
   <text x="20" y="82" fill="#aaaaaa" font-family="system-ui, sans-serif" font-size="14">${escapeXml(artist)}</text>
 </svg>`;
 }
+
