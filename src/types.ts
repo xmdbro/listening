@@ -11,6 +11,8 @@ export interface NowPlayingData {
   username: string;
   isPlaying: boolean;
   scrobbles: number | null;
+  artistScrobbles: number | null;
+  trackScrobbles: number | null;
   track: Track | null;
   updatedAt: string;
 }

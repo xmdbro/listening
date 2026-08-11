@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeRecentTracks } from "../src/lastfm";
+import { fetchDetailedScrobbles, normalizeRecentTracks } from "../src/lastfm";
 import { renderNowPlayingSvg } from "../src/svg";
 import { normalizeOpenWeatherMap, weatherIconClass, weatherSymbol } from "../src/weather";
 
@@ -25,10 +25,37 @@ test("normalizes a currently playing Last.fm track", () => {
 
   assert.equal(result.isPlaying, true);
   assert.equal(result.scrobbles, 108442);
+  assert.equal(result.artistScrobbles, null);
+  assert.equal(result.trackScrobbles, null);
   assert.equal(result.track?.name, "Cattails");
   assert.equal(result.track?.artist, "Big Thief");
   assert.equal(result.track?.imageUrl, "https://example.com/cover.jpg");
   assert.equal(result.updatedAt, now.toISOString());
+});
+
+test("loads personal artist and track scrobble counts", async () => {
+  const requestedMethods: string[] = [];
+  const fetcher = (async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+    requestedMethods.push(url.searchParams.get("method") ?? "");
+    assert.equal(url.searchParams.get("username"), "lance");
+    assert.equal(url.searchParams.get("autocorrect"), "1");
+
+    return Response.json(url.searchParams.get("method") === "artist.getInfo"
+      ? { artist: { stats: { userplaycount: "212" } } }
+      : { track: { userplaycount: "156" } });
+  }) as typeof fetch;
+
+  const result = await fetchDetailedScrobbles({
+    apiKey: "key",
+    username: "lance",
+    artist: "An artist",
+    track: "A song",
+    fetcher
+  });
+
+  assert.deepEqual(result, { artistScrobbles: 212, trackScrobbles: 156 });
+  assert.deepEqual(requestedMethods.sort(), ["artist.getInfo", "track.getInfo"]);
 });
 
 test("marks the most recent scrobble as not currently playing", () => {
@@ -54,6 +81,8 @@ test("escapes user-controlled metadata in the SVG card", () => {
     isPlaying: true,
     username: "lance",
     scrobbles: 1,
+    artistScrobbles: null,
+    trackScrobbles: null,
     updatedAt: new Date().toISOString(),
     track: {
       name: "<script>alert(1)</script>",

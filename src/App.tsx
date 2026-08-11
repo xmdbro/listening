@@ -198,6 +198,12 @@ export default function App(): React.JSX.Element {
                   {data?.scrobbles !== null && (
                     <p className="scrobbles"><b>{formatScrobbles(data?.scrobbles ?? null)}</b> scrobbles</p>
                   )}
+                  {data?.artistScrobbles !== null && data?.trackScrobbles !== null && (
+                    <p className="detailed-scrobbles">
+                      <b>{formatScrobbles(data?.artistScrobbles ?? null)}</b> this artist •{" "}
+                      <b>{formatScrobbles(data?.trackScrobbles ?? null)}</b> this track
+                    </p>
+                  )}
                   <h2>
                     <i className="fa-brands fa-lastfm" aria-hidden="true" />{" "}
                     {data?.username} {data?.isPlaying ? "is listening to" : "last listened to"}

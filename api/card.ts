@@ -20,6 +20,8 @@ export async function createCardResponse(): Promise<Response> {
         username: process.env.LASTFM_USERNAME ?? "unknown",
         isPlaying: false,
         scrobbles: null,
+        artistScrobbles: null,
+        trackScrobbles: null,
         track: null,
         updatedAt: new Date().toISOString()
       }),
@@ -37,4 +39,3 @@ export async function createCardResponse(): Promise<Response> {
 export default {
   fetch: createCardResponse
 };
-
