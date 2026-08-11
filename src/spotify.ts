@@ -1,7 +1,7 @@
 const SPOTIFY_TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
 const SPOTIFY_API_ENDPOINT = "https://api.spotify.com/v1";
 const ARTWORK_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const MISSING_ARTWORK_CACHE_TTL_MS = 10 * 60 * 1000;
+const INCOMPLETE_ARTWORK_CACHE_TTL_MS = 60 * 1000;
 
 interface SpotifyImage {
   url?: unknown;
@@ -195,9 +195,12 @@ export function getSpotifyArtworkFromEnvironment(
 
   const request = fetchSpotifyArtwork({ clientId, clientSecret, artist, track })
     .then((artwork) => {
+      const hasCompleteArtwork = Boolean(artwork?.albumImageUrl && artwork.artistImageUrl);
       artworkCache.set(key, {
         artwork,
-        expiresAt: Date.now() + (artwork ? ARTWORK_CACHE_TTL_MS : MISSING_ARTWORK_CACHE_TTL_MS)
+        expiresAt: Date.now() + (
+          hasCompleteArtwork ? ARTWORK_CACHE_TTL_MS : INCOMPLETE_ARTWORK_CACHE_TTL_MS
+        )
       });
       return artwork;
     })

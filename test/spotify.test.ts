@@ -59,3 +59,37 @@ test("loads Spotify album and artist artwork", async () => {
   });
   assert.equal(requests.length, 3);
 });
+
+test("keeps the Spotify album when artist artwork is temporarily unavailable", async () => {
+  const fetcher = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes("accounts.spotify.com")) {
+      return Response.json({ access_token: "token", expires_in: 3600 });
+    }
+    if (url.includes("/search?")) {
+      return Response.json({
+        tracks: {
+          items: [{
+            album: {
+              images: [{ url: "https://i.scdn.co/album.jpg" }],
+              external_urls: { spotify: "https://open.spotify.com/album/album-id" }
+            },
+            artists: [{ id: "artist-id", name: "The Japanese House" }]
+          }]
+        }
+      });
+    }
+    return new Response(null, { status: 503 });
+  }) as typeof fetch;
+
+  const artwork = await fetchSpotifyArtwork({
+    clientId: "another-client",
+    clientSecret: "another-secret",
+    artist: "The Japanese House",
+    track: "i saw you in a dream",
+    fetcher
+  });
+
+  assert.equal(artwork?.albumImageUrl, "https://i.scdn.co/album.jpg");
+  assert.equal(artwork?.artistImageUrl, "");
+});
