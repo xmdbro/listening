@@ -87,7 +87,7 @@ h2 {
   background-image: var(--cover-url);
   background-position: center top;
   background-size: cover;
-  filter: blur(15px);
+  filter: blur(1.25vmin);
   transform: scale(1.02);
   transition: background-image 0.6s linear;
 }
