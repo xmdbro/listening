@@ -24,6 +24,7 @@ body,
 body {
   overflow: hidden;
   background: #35384a;
+  line-height: 1;
 }
 
 button,
@@ -192,8 +193,12 @@ h2 {
 }
 
 .user-line {
-  min-height: 3.25em;
   margin-bottom: 0.65em;
+  font-size: 1.6em;
+}
+
+.user-line h2 {
+  font-size: 1em;
 }
 
 .scrobbles,
@@ -201,6 +206,10 @@ h2 {
   margin-bottom: 0.3em;
   color: #c4c4c4;
   font-size: 0.6em;
+}
+
+.detailed-scrobbles {
+  font-size: 0.5em;
 }
 
 .song-link {
