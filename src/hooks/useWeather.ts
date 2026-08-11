@@ -7,6 +7,15 @@ interface WeatherState {
   loading: boolean;
 }
 
+interface CachedWeather {
+  data: WeatherData;
+  expiresAt: number;
+}
+
+const WEATHER_CACHE_PREFIX = "listening:weather:v1";
+const WEATHER_CACHE_TTL_MS = 10 * 60 * 1000;
+const pendingWeather = new Map<string, Promise<WeatherData>>();
+
 function getPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -22,7 +31,39 @@ function getPosition(): Promise<GeolocationPosition> {
   });
 }
 
-async function fetchLocalWeather(latitude: number, longitude: number): Promise<WeatherData> {
+function cacheKey(latitude: number, longitude: number): string {
+  return `${WEATHER_CACHE_PREFIX}:${latitude.toFixed(2)}:${longitude.toFixed(2)}`;
+}
+
+function readCachedWeather(key: string): WeatherData | null {
+  try {
+    const value = window.localStorage.getItem(key);
+    if (!value) return null;
+
+    const cached = JSON.parse(value) as CachedWeather;
+    if (!cached.data || !Number.isFinite(cached.expiresAt) || cached.expiresAt <= Date.now()) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+
+    return cached.data;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedWeather(key: string, data: WeatherData): void {
+  try {
+    window.localStorage.setItem(key, JSON.stringify({
+      data,
+      expiresAt: Date.now() + WEATHER_CACHE_TTL_MS
+    } satisfies CachedWeather));
+  } catch {
+    // Weather still works when storage is unavailable or full.
+  }
+}
+
+async function requestLocalWeather(latitude: number, longitude: number): Promise<WeatherData> {
   const url = new URL("/api/weather", window.location.origin);
   url.search = new URLSearchParams({
     lat: latitude.toFixed(2),
@@ -36,6 +77,26 @@ async function fetchLocalWeather(latitude: number, longitude: number): Promise<W
   }
 
   return payload;
+}
+
+function fetchLocalWeather(latitude: number, longitude: number): Promise<WeatherData> {
+  const key = cacheKey(latitude, longitude);
+  const cached = readCachedWeather(key);
+  if (cached) return Promise.resolve(cached);
+
+  const existingRequest = pendingWeather.get(key);
+  if (existingRequest) return existingRequest;
+
+  const request = requestLocalWeather(latitude, longitude)
+    .then((weather) => {
+      writeCachedWeather(key, weather);
+      return weather;
+    })
+    .finally(() => {
+      pendingWeather.delete(key);
+    });
+  pendingWeather.set(key, request);
+  return request;
 }
 
 export function useWeather(enabled: boolean): WeatherState {

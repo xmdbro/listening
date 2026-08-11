@@ -1,19 +1,57 @@
 import { fetchWeather } from "../src/weather";
+import type { WeatherData } from "../src/types";
+
+interface CachedWeather {
+  data: WeatherData;
+  expiresAt: number;
+}
+
+const WEATHER_CACHE_TTL_MS = 10 * 60 * 1000;
+const weatherCache = new Map<string, CachedWeather>();
+const pendingWeather = new Map<string, Promise<WeatherData>>();
+
+function cacheKey(latitude: number, longitude: number): string {
+  return `${latitude.toFixed(2)}:${longitude.toFixed(2)}`;
+}
+
+async function getWeather(latitude: number, longitude: number): Promise<WeatherData> {
+  const key = cacheKey(latitude, longitude);
+  const cached = weatherCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+  weatherCache.delete(key);
+
+  const existingRequest = pendingWeather.get(key);
+  if (existingRequest) return existingRequest;
+
+  const request = fetchWeather({
+    apiKey: process.env.OPENWEATHERMAP_API_KEY,
+    latitude,
+    longitude
+  })
+    .then((data) => {
+      weatherCache.set(key, {
+        data,
+        expiresAt: Date.now() + WEATHER_CACHE_TTL_MS
+      });
+      return data;
+    })
+    .finally(() => {
+      pendingWeather.delete(key);
+    });
+  pendingWeather.set(key, request);
+  return request;
+}
 
 export async function createWeatherResponse(request: Request): Promise<Response> {
   try {
     const url = new URL(request.url);
     const latitude = Number(url.searchParams.get("lat"));
     const longitude = Number(url.searchParams.get("lon"));
-    const weather = await fetchWeather({
-      apiKey: process.env.OPENWEATHERMAP_API_KEY,
-      latitude,
-      longitude
-    });
+    const weather = await getWeather(latitude, longitude);
 
     return Response.json(weather, {
       headers: {
-        "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=300"
+        "Cache-Control": "public, max-age=600, s-maxage=600, stale-while-revalidate=300"
       }
     });
   } catch (error) {
@@ -44,4 +82,3 @@ export async function createWeatherResponse(request: Request): Promise<Response>
 export default {
   fetch: createWeatherResponse
 };
-
