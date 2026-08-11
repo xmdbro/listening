@@ -98,7 +98,7 @@ export default function App(): React.JSX.Element {
   });
 
   useEffect(() => {
-    if (track) document.title = `${track.name} - ${track.artist}`;
+    document.title = track ? `"${track.name}" by ${track.artist}` : "Listening";
   }, [track]);
 
   return (
@@ -177,4 +177,3 @@ export default function App(): React.JSX.Element {
     </div>
   );
 }
-
