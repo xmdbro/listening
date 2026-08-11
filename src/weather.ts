@@ -36,6 +36,30 @@ export function weatherSymbol(icon: string): string {
   return symbols[icon.slice(0, 2)] ?? "○";
 }
 
+export function weatherIconClass(icon: string): string {
+  const icons: Record<string, string> = {
+    "01d": "day-sunny",
+    "01n": "night-clear",
+    "02d": "day-cloudy",
+    "02n": "night-cloudy",
+    "03d": "cloud",
+    "03n": "cloud",
+    "04d": "cloudy",
+    "04n": "cloudy",
+    "09d": "rain",
+    "09n": "rain",
+    "10d": "day-rain",
+    "10n": "night-rain",
+    "11d": "thunderstorm",
+    "11n": "thunderstorm",
+    "13d": "snow",
+    "13n": "snow",
+    "50d": "windy",
+    "50n": "windy"
+  };
+  return `wi wi-${icons[icon] ?? "cloud"}`;
+}
+
 export function normalizeOpenWeatherMap(payload: OpenWeatherMapPayload): WeatherData {
   const condition = payload.weather?.[0];
   const temperature = Number(payload.main?.temp);
@@ -99,4 +123,3 @@ export async function fetchWeather({
 
   return normalizeOpenWeatherMap(await response.json() as OpenWeatherMapPayload);
 }
-

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeRecentTracks } from "../src/lastfm";
 import { renderNowPlayingSvg } from "../src/svg";
-import { normalizeOpenWeatherMap, weatherSymbol } from "../src/weather";
+import { normalizeOpenWeatherMap, weatherIconClass, weatherSymbol } from "../src/weather";
 
 test("normalizes a currently playing Last.fm track", () => {
   const now = new Date("2026-08-12T00:00:00.000Z");
@@ -83,4 +83,5 @@ test("normalizes OpenWeatherMap current conditions", () => {
     unit: "°C"
   });
   assert.equal(weatherSymbol("11n"), "ϟ");
+  assert.equal(weatherIconClass("04d"), "wi wi-cloudy");
 });
