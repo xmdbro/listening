@@ -63,10 +63,12 @@ export default function App(): React.JSX.Element {
   const { data, error, loading } = useNowPlaying();
   const [features, setFeatures] = useState(loadFeatures);
   const [helpVisible, setHelpVisible] = useState(true);
+  const [helpHovered, setHelpHovered] = useState(false);
   const [cursorHidden, setCursorHidden] = useState(false);
   const weather = useWeather(features.weather);
   const track = data?.track ?? null;
   const colors = useArtworkColors(track?.imageUrl);
+  const controlsVisible = helpVisible || helpHovered;
 
   const displayStyle = useMemo<React.CSSProperties>(() => ({
     "--cover-url": track?.imageUrl ? `url("${track.imageUrl.replaceAll('"', "%22")}")` : "none",
@@ -166,23 +168,27 @@ export default function App(): React.JSX.Element {
         </div>
 
         <div className="row bottom">
-          <div className="corner left">
-            <nav className={`help code fade ${helpVisible ? "visible" : "hidden"}`} aria-label="Display controls" aria-hidden={!helpVisible}>
+          <div
+            className="corner left controls-corner"
+            onPointerEnter={() => setHelpHovered(true)}
+            onPointerLeave={() => setHelpHovered(false)}
+          >
+            <nav className={`help code fade ${controlsVisible ? "visible" : "hidden"}`} aria-label="Display controls" aria-hidden={!controlsVisible}>
               <div className="links">
-                <a href="https://github.com/xmdbro/listening" target="_blank" rel="noreferrer" tabIndex={helpVisible ? 0 : -1}>
+                <a href="https://github.com/xmdbro/listening" target="_blank" rel="noreferrer" tabIndex={controlsVisible ? 0 : -1}>
                   source <i className="fa-brands fa-github" aria-hidden="true" />
                 </a>
               </div>
-              <button type="button" tabIndex={helpVisible ? 0 : -1} aria-pressed={features.weather} onClick={() => toggle("weather")}>
+              <button type="button" tabIndex={controlsVisible ? 0 : -1} aria-pressed={features.weather} onClick={() => toggle("weather")}>
                 <i className="fa-solid fa-sun fa-fw" aria-hidden="true" /> [w]eather
               </button>
-              <button type="button" tabIndex={helpVisible ? 0 : -1} aria-pressed={features.time} onClick={() => toggle("time")}>
+              <button type="button" tabIndex={controlsVisible ? 0 : -1} aria-pressed={features.time} onClick={() => toggle("time")}>
                 <i className="fa-solid fa-clock fa-fw" aria-hidden="true" /> [t]ime and date
               </button>
-              <button type="button" tabIndex={helpVisible ? 0 : -1} aria-pressed={features.extended} onClick={() => toggle("extended")}>
+              <button type="button" tabIndex={controlsVisible ? 0 : -1} aria-pressed={features.extended} onClick={() => toggle("extended")}>
                 <i className="fa-solid fa-note-sticky fa-fw" aria-hidden="true" /> [e]xtended info
               </button>
-              <button type="button" tabIndex={helpVisible ? 0 : -1} onClick={() => setHelpVisible(false)}>
+              <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={() => setHelpVisible(false)}>
                 <i className="fa-solid fa-question fa-fw" aria-hidden="true" /> [h]elp
               </button>
             </nav>
