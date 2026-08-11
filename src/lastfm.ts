@@ -29,13 +29,17 @@ interface LastFmPayload {
 
 interface LastFmInfoPayload {
   error?: unknown;
-  artist?: { stats?: { userplaycount?: unknown } };
+  artist?: {
+    stats?: { userplaycount?: unknown };
+    image?: LastFmImage[];
+  };
   track?: { userplaycount?: unknown };
 }
 
 interface DetailedScrobbles {
   artistScrobbles: number | null;
   trackScrobbles: number | null;
+  artistImageUrl: string;
 }
 
 interface DetailedScrobblesCacheEntry extends DetailedScrobbles {
@@ -74,6 +78,7 @@ export function normalizeRecentTracks(
       scrobbles,
       artistScrobbles: null,
       trackScrobbles: null,
+      artistImageUrl: "",
       track: null,
       updatedAt: now.toISOString()
     };
@@ -92,6 +97,7 @@ export function normalizeRecentTracks(
     scrobbles,
     artistScrobbles: null,
     trackScrobbles: null,
+    artistImageUrl: "",
     track: {
       name: text(track.name),
       artist: text(track.artist?.["#text"]),
@@ -154,7 +160,11 @@ export async function fetchDetailedScrobbles({
 
   return {
     artistScrobbles: numberOrNull(artistPayload?.artist?.stats?.userplaycount),
-    trackScrobbles: numberOrNull(trackPayload?.track?.userplaycount)
+    trackScrobbles: numberOrNull(trackPayload?.track?.userplaycount),
+    artistImageUrl: [...(artistPayload?.artist?.image ?? [])]
+      .reverse()
+      .map((image) => text(image?.["#text"]))
+      .find(Boolean) ?? ""
   };
 }
 

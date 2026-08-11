@@ -56,4 +56,3 @@ export function useNowPlaying(refreshEvery = 15_000): NowPlayingState {
 
   return state;
 }
-

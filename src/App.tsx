@@ -69,12 +69,13 @@ export default function App(): React.JSX.Element {
   const track = data?.track ?? null;
   const colors = useArtworkColors(track?.imageUrl);
   const controlsVisible = helpVisible || helpHovered;
+  const backgroundImageUrl = data?.artistImageUrl || track?.imageUrl;
 
   const displayStyle = useMemo<React.CSSProperties>(() => ({
-    "--cover-url": track?.imageUrl ? `url("${track.imageUrl.replaceAll('"', "%22")}")` : "none",
+    "--cover-url": backgroundImageUrl ? `url("${backgroundImageUrl.replaceAll('"', "%22")}")` : "none",
     "--title-color": colors[0],
     "--artist-color": colors[1]
-  }) as React.CSSProperties, [colors, track?.imageUrl]);
+  }) as React.CSSProperties, [backgroundImageUrl, colors]);
 
   function toggle(feature: Feature): void {
     setFeatures((current) => {

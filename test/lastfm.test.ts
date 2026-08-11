@@ -27,6 +27,7 @@ test("normalizes a currently playing Last.fm track", () => {
   assert.equal(result.scrobbles, 108442);
   assert.equal(result.artistScrobbles, null);
   assert.equal(result.trackScrobbles, null);
+  assert.equal(result.artistImageUrl, "");
   assert.equal(result.track?.name, "Cattails");
   assert.equal(result.track?.artist, "Big Thief");
   assert.equal(result.track?.imageUrl, "https://example.com/cover.jpg");
@@ -42,7 +43,15 @@ test("loads personal artist and track scrobble counts", async () => {
     assert.equal(url.searchParams.get("autocorrect"), "1");
 
     return Response.json(url.searchParams.get("method") === "artist.getInfo"
-      ? { artist: { stats: { userplaycount: "212" } } }
+      ? {
+          artist: {
+            stats: { userplaycount: "212" },
+            image: [
+              { "#text": "https://example.com/small.jpg" },
+              { "#text": "https://example.com/large.jpg" }
+            ]
+          }
+        }
       : { track: { userplaycount: "156" } });
   }) as typeof fetch;
 
@@ -54,7 +63,11 @@ test("loads personal artist and track scrobble counts", async () => {
     fetcher
   });
 
-  assert.deepEqual(result, { artistScrobbles: 212, trackScrobbles: 156 });
+  assert.deepEqual(result, {
+    artistScrobbles: 212,
+    trackScrobbles: 156,
+    artistImageUrl: "https://example.com/large.jpg"
+  });
   assert.deepEqual(requestedMethods.sort(), ["artist.getInfo", "track.getInfo"]);
 });
 
@@ -83,6 +96,7 @@ test("escapes user-controlled metadata in the SVG card", () => {
     scrobbles: 1,
     artistScrobbles: null,
     trackScrobbles: null,
+    artistImageUrl: "",
     updatedAt: new Date().toISOString(),
     track: {
       name: "<script>alert(1)</script>",

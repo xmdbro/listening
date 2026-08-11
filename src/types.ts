@@ -13,6 +13,7 @@ export interface NowPlayingData {
   scrobbles: number | null;
   artistScrobbles: number | null;
   trackScrobbles: number | null;
+  artistImageUrl: string;
   track: Track | null;
   updatedAt: string;
 }
