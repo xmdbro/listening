@@ -1,5 +1,8 @@
+import { setDefaultResultOrder } from "node:dns";
 import type { NowPlayingData } from "./types";
 import { getSpotifyArtworkFromEnvironment } from "./spotify";
+
+setDefaultResultOrder("ipv4first");
 
 const LASTFM_ENDPOINT = "https://ws.audioscrobbler.com/2.0/";
 const CACHE_TTL_MS = 10_000;

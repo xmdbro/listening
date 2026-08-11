@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
+import { getDefaultResultOrder } from "node:dns";
 import test from "node:test";
 import { fetchDetailedScrobbles, normalizeRecentTracks } from "../src/lastfm";
 import { renderNowPlayingSvg } from "../src/svg";
 import { normalizeOpenWeatherMap, weatherIconClass, weatherSymbol } from "../src/weather";
+
+test("prefers IPv4 for Last.fm requests", () => {
+  assert.equal(getDefaultResultOrder(), "ipv4first");
+});
 
 test("normalizes a currently playing Last.fm track", () => {
   const now = new Date("2026-08-12T00:00:00.000Z");
