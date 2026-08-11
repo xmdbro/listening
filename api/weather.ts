@@ -1,5 +1,5 @@
-import { fetchWeather } from "../src/weather";
-import type { WeatherData } from "../src/types";
+import { fetchWeather } from "../src/weather.js";
+import type { WeatherData } from "../src/types.js";
 
 interface CachedWeather {
   data: WeatherData;

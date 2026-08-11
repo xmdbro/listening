@@ -1,6 +1,6 @@
-import { getNowPlayingFromEnvironment } from "../src/lastfm";
-import { getEmbeddedImage } from "../src/image-data";
-import { renderNowPlayingSvg } from "../src/svg";
+import { getNowPlayingFromEnvironment } from "../src/lastfm.js";
+import { getEmbeddedImage } from "../src/image-data.js";
+import { renderNowPlayingSvg } from "../src/svg.js";
 
 function cardCacheControl(): string {
   const isProduction = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);

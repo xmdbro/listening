@@ -1,9 +1,9 @@
 import { createServer } from "node:http";
 import type { ServerResponse } from "node:http";
 import { createServer as createViteServer } from "vite";
-import { createCardResponse } from "../api/card";
-import { createNowPlayingResponse } from "../api/now-playing";
-import { createWeatherResponse } from "../api/weather";
+import { createCardResponse } from "../api/card.js";
+import { createNowPlayingResponse } from "../api/now-playing.js";
+import { createWeatherResponse } from "../api/weather.js";
 
 const port = Number(process.env.PORT) || 3000;
 const vite = await createViteServer({

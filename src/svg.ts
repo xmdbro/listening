@@ -1,4 +1,4 @@
-import type { NowPlayingData } from "./types";
+import type { NowPlayingData } from "./types.js";
 
 export interface NowPlayingSvgImages {
   background?: string;

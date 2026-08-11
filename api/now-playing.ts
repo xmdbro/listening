@@ -1,4 +1,4 @@
-import { getNowPlayingFromEnvironment } from "../src/lastfm";
+import { getNowPlayingFromEnvironment } from "../src/lastfm.js";
 
 export async function createNowPlayingResponse(): Promise<Response> {
   try {
@@ -33,4 +33,3 @@ export async function createNowPlayingResponse(): Promise<Response> {
 export default {
   fetch: createNowPlayingResponse
 };
-

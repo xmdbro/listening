@@ -1,6 +1,6 @@
 import { setDefaultResultOrder } from "node:dns";
-import type { NowPlayingData } from "./types";
-import { getSpotifyArtworkFromEnvironment } from "./spotify";
+import type { NowPlayingData } from "./types.js";
+import { getSpotifyArtworkFromEnvironment } from "./spotify.js";
 
 setDefaultResultOrder("ipv4first");
 
