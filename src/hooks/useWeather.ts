@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import type { WeatherData } from "../types";
-import { fetchWeather } from "../weather";
 
 interface WeatherState {
   data: WeatherData | null;
@@ -23,6 +22,22 @@ function getPosition(): Promise<GeolocationPosition> {
   });
 }
 
+async function fetchLocalWeather(latitude: number, longitude: number): Promise<WeatherData> {
+  const url = new URL("/api/weather", window.location.origin);
+  url.search = new URLSearchParams({
+    lat: latitude.toFixed(2),
+    lon: longitude.toFixed(2)
+  }).toString();
+  const response = await fetch(url, { signal: AbortSignal.timeout(7_000) });
+  const payload = await response.json() as WeatherData & { error?: string; detail?: string };
+
+  if (!response.ok) {
+    throw new Error(payload.detail || payload.error || "Weather is unavailable.");
+  }
+
+  return payload;
+}
+
 export function useWeather(enabled: boolean): WeatherState {
   const [state, setState] = useState<WeatherState>({
     data: null,
@@ -38,7 +53,7 @@ export function useWeather(enabled: boolean): WeatherState {
     async function load(): Promise<void> {
       try {
         const position = await getPosition();
-        const weather = await fetchWeather(
+        const weather = await fetchLocalWeather(
           position.coords.latitude,
           position.coords.longitude
         );
@@ -60,4 +75,3 @@ export function useWeather(enabled: boolean): WeatherState {
 
   return state;
 }
-

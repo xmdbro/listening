@@ -18,8 +18,8 @@ export interface NowPlayingData {
 export interface WeatherData {
   label: string;
   symbol: string;
+  icon: string;
   temperature: number;
   apparentTemperature: number;
   unit: string;
 }
-

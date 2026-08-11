@@ -3,6 +3,7 @@ import type { ServerResponse } from "node:http";
 import { createServer as createViteServer } from "vite";
 import { createCardResponse } from "../api/card";
 import { createNowPlayingResponse } from "../api/now-playing";
+import { createWeatherResponse } from "../api/weather";
 
 const port = Number(process.env.PORT) || 3000;
 const vite = await createViteServer({
@@ -29,6 +30,12 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === "/api/weather") {
+    const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
+    await send(await createWeatherResponse(new Request(url)), response);
+    return;
+  }
+
   vite.middlewares(request, response, () => {
     response.statusCode = 404;
     response.end("Not found");
@@ -38,4 +45,3 @@ const server = createServer(async (request, response) => {
 server.listen(port, () => {
   console.log(`Listening is running at http://localhost:${port}`);
 });
-

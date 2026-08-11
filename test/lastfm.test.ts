@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeRecentTracks } from "../src/lastfm";
 import { renderNowPlayingSvg } from "../src/svg";
-import { describeWeather } from "../src/weather";
+import { normalizeOpenWeatherMap, weatherSymbol } from "../src/weather";
 
 test("normalizes a currently playing Last.fm track", () => {
   const now = new Date("2026-08-12T00:00:00.000Z");
@@ -70,7 +70,17 @@ test("escapes user-controlled metadata in the SVG card", () => {
   assert.match(svg, /A &amp; B/);
 });
 
-test("maps WMO weather codes to display labels", () => {
-  assert.deepEqual(describeWeather(3), { label: "Overcast", symbol: "☁" });
-  assert.deepEqual(describeWeather(95), { label: "Thunderstorm", symbol: "ϟ" });
+test("normalizes OpenWeatherMap current conditions", () => {
+  assert.deepEqual(normalizeOpenWeatherMap({
+    weather: [{ description: "broken clouds", icon: "04d" }],
+    main: { temp: 26.4, feels_like: 28.1 }
+  }), {
+    label: "Broken clouds",
+    symbol: "☁",
+    icon: "04d",
+    temperature: 26.4,
+    apparentTemperature: 28.1,
+    unit: "°C"
+  });
+  assert.equal(weatherSymbol("11n"), "ϟ");
 });
