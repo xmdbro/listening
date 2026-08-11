@@ -4,6 +4,7 @@ export interface Track {
   album: string;
   url: string;
   imageUrl: string;
+  imageSourceUrl: string;
   playedAt: string | null;
 }
 
@@ -14,6 +15,7 @@ export interface NowPlayingData {
   artistScrobbles: number | null;
   trackScrobbles: number | null;
   artistImageUrl: string;
+  artistImageSourceUrl: string;
   track: Track | null;
   updatedAt: string;
 }

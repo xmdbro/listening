@@ -1,4 +1,5 @@
 import type { NowPlayingData } from "./types";
+import { getSpotifyArtworkFromEnvironment } from "./spotify";
 
 const LASTFM_ENDPOINT = "https://ws.audioscrobbler.com/2.0/";
 const CACHE_TTL_MS = 10_000;
@@ -29,17 +30,13 @@ interface LastFmPayload {
 
 interface LastFmInfoPayload {
   error?: unknown;
-  artist?: {
-    stats?: { userplaycount?: unknown };
-    image?: LastFmImage[];
-  };
+  artist?: { stats?: { userplaycount?: unknown } };
   track?: { userplaycount?: unknown };
 }
 
 interface DetailedScrobbles {
   artistScrobbles: number | null;
   trackScrobbles: number | null;
-  artistImageUrl: string;
 }
 
 interface DetailedScrobblesCacheEntry extends DetailedScrobbles {
@@ -79,6 +76,7 @@ export function normalizeRecentTracks(
       artistScrobbles: null,
       trackScrobbles: null,
       artistImageUrl: "",
+      artistImageSourceUrl: "",
       track: null,
       updatedAt: now.toISOString()
     };
@@ -98,12 +96,14 @@ export function normalizeRecentTracks(
     artistScrobbles: null,
     trackScrobbles: null,
     artistImageUrl: "",
+    artistImageSourceUrl: "",
     track: {
       name: text(track.name),
       artist: text(track.artist?.["#text"]),
       album: text(track.album?.["#text"]),
       url: text(track.url),
       imageUrl,
+      imageSourceUrl: text(track.url),
       playedAt: Number.isFinite(playedAtUnix)
         ? new Date(playedAtUnix * 1000).toISOString()
         : null
@@ -160,11 +160,7 @@ export async function fetchDetailedScrobbles({
 
   return {
     artistScrobbles: numberOrNull(artistPayload?.artist?.stats?.userplaycount),
-    trackScrobbles: numberOrNull(trackPayload?.track?.userplaycount),
-    artistImageUrl: [...(artistPayload?.artist?.image ?? [])]
-      .reverse()
-      .map((image) => text(image?.["#text"]))
-      .find(Boolean) ?? ""
+    trackScrobbles: numberOrNull(trackPayload?.track?.userplaycount)
   };
 }
 
@@ -239,13 +235,29 @@ export async function getNowPlayingFromEnvironment(): Promise<NowPlayingData> {
   });
 
   if (apiKey && username && cachedResult.track) {
-    const details = await getDetailedScrobbles(
-      apiKey,
-      username,
-      cachedResult.track.artist,
-      cachedResult.track.name
-    );
-    cachedResult = { ...cachedResult, ...details };
+    const [details, spotifyArtwork] = await Promise.all([
+      getDetailedScrobbles(
+        apiKey,
+        username,
+        cachedResult.track.artist,
+        cachedResult.track.name
+      ),
+      getSpotifyArtworkFromEnvironment(
+        cachedResult.track.artist,
+        cachedResult.track.name
+      )
+    ]);
+    cachedResult = {
+      ...cachedResult,
+      ...details,
+      artistImageUrl: spotifyArtwork?.artistImageUrl ?? "",
+      artistImageSourceUrl: spotifyArtwork?.artistUrl ?? "",
+      track: {
+        ...cachedResult.track,
+        imageUrl: spotifyArtwork?.albumImageUrl || cachedResult.track.imageUrl,
+        imageSourceUrl: spotifyArtwork?.albumUrl || cachedResult.track.imageSourceUrl
+      }
+    };
   }
   cachedUntil = now + CACHE_TTL_MS;
 

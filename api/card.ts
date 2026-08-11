@@ -23,6 +23,7 @@ export async function createCardResponse(): Promise<Response> {
         artistScrobbles: null,
         trackScrobbles: null,
         artistImageUrl: "",
+        artistImageSourceUrl: "",
         track: null,
         updatedAt: new Date().toISOString()
       }),

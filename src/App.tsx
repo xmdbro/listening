@@ -179,6 +179,11 @@ export default function App(): React.JSX.Element {
                 <a href="https://github.com/xmdbro/listening" target="_blank" rel="noreferrer" tabIndex={controlsVisible ? 0 : -1}>
                   source <i className="fa-brands fa-github" aria-hidden="true" />
                 </a>
+                {data?.artistImageSourceUrl && (
+                  <a href={data.artistImageSourceUrl} target="_blank" rel="noreferrer" tabIndex={controlsVisible ? 0 : -1}>
+                    artist <i className="fa-brands fa-spotify" aria-hidden="true" />
+                  </a>
+                )}
               </div>
               <button type="button" tabIndex={controlsVisible ? 0 : -1} aria-pressed={features.weather} onClick={() => toggle("weather")}>
                 <i className="fa-solid fa-sun fa-fw" aria-hidden="true" /> [w]eather
@@ -217,7 +222,7 @@ export default function App(): React.JSX.Element {
                   </h2>
                 </div>
 
-                <a className="song-link" href={track.url || undefined} target="_blank" rel="noreferrer">
+                <a className="song-link" href={track.imageSourceUrl || track.url || undefined} target="_blank" rel="noreferrer">
                   {track.imageUrl ? (
                     <img className="cover" src={track.imageUrl} alt={track.album ? `Cover art for ${track.album}` : "Album cover"} />
                   ) : (
