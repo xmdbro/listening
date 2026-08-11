@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { getDefaultResultOrder } from "node:dns";
 import test from "node:test";
 import { fetchDetailedScrobbles, normalizeRecentTracks } from "../src/lastfm";
-import { renderNowPlayingSvg } from "../src/svg";
+import { formatListeningStatus, renderNowPlayingSvg } from "../src/svg";
 import { normalizeOpenWeatherMap, weatherIconClass, weatherSymbol } from "../src/weather";
 
 test("prefers IPv4 for Last.fm requests", () => {
@@ -130,6 +130,35 @@ test("escapes user-controlled metadata in the SVG card", () => {
   assert.doesNotMatch(svg, /<script>/);
   assert.match(svg, /&lt;script&gt;/);
   assert.match(svg, /A &amp; B/);
+});
+
+test("formats now-playing and relative card statuses", () => {
+  const now = new Date("2026-08-12T01:00:00.000Z");
+  const data = normalizeRecentTracks({
+    recenttracks: {
+      track: [{
+        name: "Last song",
+        artist: { "#text": "An artist" },
+        date: { uts: String(new Date("2026-08-12T00:52:00.000Z").getTime() / 1000) }
+      }]
+    }
+  }, "lance", now);
+
+  assert.equal(formatListeningStatus(data, now), "8 minutes ago");
+  assert.equal(formatListeningStatus({ ...data, isPlaying: true }, now), "now playing");
+});
+
+test("embeds supplied cover and background artwork in the SVG card", () => {
+  const artwork = "data:image/png;base64,YXJ0";
+  const data = normalizeRecentTracks({
+    recenttracks: {
+      track: [{ name: "A song", artist: { "#text": "An artist" } }]
+    }
+  }, "lance");
+  const svg = renderNowPlayingSvg(data, { cover: artwork, background: artwork });
+
+  assert.equal(svg.match(/data:image\/png;base64,YXJ0/g)?.length, 2);
+  assert.match(svg, /feGaussianBlur/);
 });
 
 test("normalizes OpenWeatherMap current conditions", () => {
