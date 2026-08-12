@@ -161,6 +161,22 @@ test("embeds supplied cover and background artwork in the SVG card", () => {
   assert.match(svg, /feGaussianBlur/);
 });
 
+test("uses a display name in the SVG card without changing the tracked account", () => {
+  const data = normalizeRecentTracks({
+    recenttracks: {
+      track: [{
+        name: "A song",
+        artist: { "#text": "An artist" },
+        "@attr": { nowplaying: "true" }
+      }]
+    }
+  }, "xMdb");
+  const svg = renderNowPlayingSvg(data, { displayName: "Orpheus" });
+
+  assert.match(svg, /Orpheus is listening/);
+  assert.equal(data.username, "xMdb");
+});
+
 test("normalizes OpenWeatherMap current conditions", () => {
   assert.deepEqual(normalizeOpenWeatherMap({
     weather: [{ description: "broken clouds", icon: "04d" }],

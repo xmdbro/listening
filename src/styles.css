@@ -15,6 +15,7 @@ html,
 body,
 #root {
   width: 100%;
+  height: 100%;
   min-width: 320px;
   min-height: 100%;
   margin: 0;
@@ -67,7 +68,10 @@ h2 {
 
 .listening {
   position: relative;
-  min-height: 100vh;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  overflow: hidden;
   isolation: isolate;
 }
 
@@ -76,30 +80,53 @@ h2 {
   cursor: none !important;
 }
 
-.background {
+.background-stack {
   position: fixed;
+  inset: 0;
   z-index: -1;
-  width: 100vw;
-  height: 100vh;
-  margin-top: -2em;
-  margin-left: -2em;
-  padding: 4em;
+  overflow: hidden;
+}
+
+.background {
+  position: absolute;
+  inset: -3vmax;
   background-color: #35384a;
   background-image: var(--cover-url);
   background-position: center top;
   background-size: cover;
+}
+
+.background-blurred .background {
   filter: blur(1.25vmin);
-  transform: scale(1.02);
-  transition: background-image 0.6s linear;
+}
+
+.background-none .background {
+  background-color: #000;
+  background-image: none;
+}
+
+.background-outgoing {
+  z-index: 0;
+}
+
+.background-current,
+.background-incoming {
+  z-index: 1;
+}
+
+.background-incoming {
+  animation: background-wipe-down 1s cubic-bezier(0.65, 0, 0.2, 1) both;
 }
 
 .container {
   display: flex;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
   padding: 2em 3em;
   flex-direction: column;
   justify-content: space-between;
+  caret-color: transparent;
   background: rgba(0, 0, 0, 0.65);
 }
 
@@ -136,6 +163,11 @@ h2 {
   opacity: 1;
   visibility: visible;
   transition-delay: 0s;
+}
+
+.track-transitioning .datetime.visible,
+.track-transitioning .weather.visible {
+  animation: ambient-transition-dim 1.1s ease-in-out both;
 }
 
 .datetime,
@@ -189,7 +221,68 @@ h2 {
 }
 
 .music {
+  position: relative;
   min-width: 20vw;
+}
+
+.music-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.extended-info-stack {
+  position: relative;
+  width: 100%;
+}
+
+.track-layer.current,
+.track-layer.incoming {
+  position: relative;
+  z-index: 2;
+}
+
+.track-layer.outgoing {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+}
+
+.cover-stack {
+  display: grid;
+}
+
+.cover-layer {
+  grid-area: 1 / 1;
+}
+
+.cover-layer.outgoing {
+  z-index: 1;
+}
+
+.cover-layer.current,
+.cover-layer.incoming {
+  z-index: 3;
+}
+
+.cover-layer.incoming {
+  animation: cover-wipe-down 1s cubic-bezier(0.65, 0, 0.2, 1) both;
+  will-change: clip-path;
+}
+
+.track-layer.incoming.transition-text {
+  animation: track-text-in 0.38s ease-out 0.62s both;
+}
+
+.track-layer.outgoing.transition-text {
+  animation: track-text-out 0.28s ease-in both;
+}
+
+.song-copy-stack {
+  position: relative;
+  width: 100%;
+  height: 6em;
 }
 
 .user-line {
@@ -199,6 +292,10 @@ h2 {
 
 .user-line h2 {
   font-size: 1em;
+}
+
+.last-played-status {
+  white-space: nowrap;
 }
 
 .scrobbles,
@@ -215,6 +312,13 @@ h2 {
 .song-link {
   display: inline-block;
   opacity: 1;
+}
+
+.song-copy {
+  width: max-content;
+  max-width: 70vw;
+  margin-left: auto;
+  text-align: right;
 }
 
 .cover {
@@ -253,6 +357,365 @@ h2 {
   color: #ffd2d2;
 }
 
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  padding: 1.5rem;
+  align-items: center;
+  justify-content: flex-end;
+  background: rgba(5, 5, 7, 0.34);
+  backdrop-filter: blur(18px) brightness(0.58);
+  animation: settings-backdrop-in 0.24s ease-out both;
+}
+
+.settings-backdrop.closing {
+  pointer-events: none;
+  animation: settings-backdrop-out 0.22s ease-in both;
+}
+
+.settings-panel {
+  width: min(44rem, 100%);
+  max-height: calc(100dvh - 3rem);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 1.15rem;
+  color: #f7f7f7;
+  background: rgba(22, 22, 26, 0.9);
+  box-shadow: 0 2rem 6rem rgba(0, 0, 0, 0.45);
+  animation: settings-panel-in 0.24s ease-out both;
+}
+
+.settings-panel.closing {
+  animation: settings-panel-out 0.22s ease-in both;
+}
+
+.settings-panel form {
+  display: flex;
+  max-height: calc(100dvh - 3rem);
+  flex-direction: column;
+}
+
+.settings-header,
+.settings-actions {
+  display: flex;
+  padding: 1.35rem 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.settings-header h1 {
+  margin: 0.2rem 0 0;
+  font-size: 1.75rem;
+}
+
+.settings-kicker,
+.settings-shortcut {
+  color: #aeb0b9;
+  font-family: "Source Code Pro", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-shortcut {
+  font-size: 0.9rem;
+}
+
+.settings-scroll {
+  padding: 0 1.5rem 0.65rem;
+  overflow-y: auto;
+}
+
+.settings-panel fieldset {
+  margin: 0;
+  padding: 1.5rem 0 1rem;
+  border: 0;
+}
+
+.settings-panel fieldset + fieldset {
+  padding-top: 1.1rem;
+}
+
+.settings-panel legend {
+  display: flex;
+  float: left;
+  width: 100%;
+  margin-bottom: 1.4rem;
+  padding: 0;
+  gap: 0.8rem;
+  align-items: center;
+  color: #bfc0c6;
+  font-family: "Source Code Pro", monospace;
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.settings-panel legend + * {
+  clear: both;
+}
+
+.settings-panel legend::after {
+  height: 1px;
+  flex: 1;
+  background: rgba(255, 255, 255, 0.12);
+  content: "";
+}
+
+.background-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.background-option {
+  min-height: 7rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 0.65rem;
+  color: #bfc0c6;
+  background: rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.background-option.selected {
+  border-color: rgba(255, 255, 255, 0.72);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.background-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.background-option strong,
+.background-option span {
+  display: block;
+}
+
+.background-option span,
+.setting-toggle small,
+.setting-description {
+  margin-top: 0.42rem;
+  color: #9b9ca4;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.setting-toggle {
+  display: flex;
+  min-height: 3.5rem;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.setting-toggle span,
+.setting-toggle strong,
+.setting-toggle small {
+  display: block;
+}
+
+.setting-toggle input {
+  width: 2.7rem;
+  height: 1.45rem;
+  flex: 0 0 auto;
+  accent-color: #d7d2ff;
+}
+
+.coordinate-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.coordinate-grid label span {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: #bfc0c6;
+  font-size: 0.75rem;
+}
+
+.coordinate-grid input {
+  width: 100%;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.5rem;
+  outline: none;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.22);
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.setting-text-input input {
+  width: 100%;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.5rem;
+  outline: none;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.setting-text-input input:focus-visible {
+  border-color: #d7d2ff;
+}
+
+.coordinate-grid input::-webkit-inner-spin-button,
+.coordinate-grid input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.coordinate-grid input:focus-visible {
+  border-color: #d7d2ff;
+}
+
+.settings-error {
+  margin-top: 0.75rem;
+  color: #ffbaba;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.settings-actions {
+  gap: 0.65rem;
+  justify-content: flex-end;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.settings-actions button {
+  padding: 0.65rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.5rem;
+  color: #fff;
+  background: transparent;
+  cursor: pointer;
+}
+
+.settings-actions .primary {
+  color: #17171a;
+  background: #f4f1ff;
+}
+
+.settings-actions button:hover,
+.settings-actions button:focus-visible {
+  border-color: #fff;
+}
+
+@keyframes settings-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(1.25rem) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes settings-panel-out {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(1.25rem) scale(0.985);
+  }
+}
+
+@keyframes settings-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes settings-backdrop-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes background-wipe-down {
+  from {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(-2%);
+  }
+
+  to {
+    clip-path: inset(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes ambient-transition-dim {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  22%,
+  72% {
+    opacity: 0.82;
+  }
+}
+
+@keyframes cover-wipe-down {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+
+  to {
+    clip-path: inset(0);
+  }
+}
+
+@keyframes track-text-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes track-text-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
 @media (min-width: 768px) {
   .cover {
     width: 28vw;
@@ -280,16 +743,53 @@ h2 {
     gap: 1em;
   }
 
+  .row.bottom {
+    position: relative;
+  }
+
   .weather {
     font-size: 0.72em;
   }
 
   .music {
-    max-width: 68vw;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .song-copy {
+    width: 100%;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .controls-corner {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    z-index: 5;
   }
 
   .help {
     font-size: 0.68em;
+  }
+
+  .settings-backdrop {
+    padding: 0.75rem;
+  }
+
+  .settings-panel,
+  .settings-panel form {
+    max-height: calc(100dvh - 1.5rem);
+  }
+
+  .background-options,
+  .coordinate-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .background-option {
+    min-height: 0;
   }
 }
 
@@ -298,6 +798,8 @@ h2 {
   *::before,
   *::after {
     scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
   }
 }

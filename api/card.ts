@@ -9,7 +9,15 @@ function cardCacheControl(): string {
     : "no-store";
 }
 
-export async function createCardResponse(): Promise<Response> {
+function cardDisplayName(request?: Request): string {
+  const requested = request
+    ? new URL(request.url).searchParams.get("name")?.trim()
+    : "";
+  return (requested || "").slice(0, 40);
+}
+
+export async function createCardResponse(request?: Request): Promise<Response> {
+  const displayName = cardDisplayName(request);
   try {
     const data = await getNowPlayingFromEnvironment();
     const coverUrl = data.track?.imageUrl ?? "";
@@ -20,7 +28,7 @@ export async function createCardResponse(): Promise<Response> {
       : getEmbeddedImage(backgroundUrl);
     const [cover, background] = await Promise.all([coverPromise, backgroundPromise]);
 
-    return new Response(renderNowPlayingSvg(data, { cover, background }), {
+    return new Response(renderNowPlayingSvg(data, { cover, background, displayName }), {
       headers: {
         "Cache-Control": cardCacheControl(),
         "Content-Type": "image/svg+xml; charset=utf-8"
@@ -41,7 +49,7 @@ export async function createCardResponse(): Promise<Response> {
         artistImageSourceUrl: "",
         track: null,
         updatedAt: new Date().toISOString()
-      }),
+      }, { displayName }),
       {
         status: missingConfiguration ? 503 : 502,
         headers: {
@@ -54,5 +62,5 @@ export async function createCardResponse(): Promise<Response> {
 }
 
 export default {
-  fetch: createCardResponse
+  fetch: (request: Request) => createCardResponse(request)
 };

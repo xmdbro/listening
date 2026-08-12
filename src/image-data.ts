@@ -1,6 +1,13 @@
 const IMAGE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const MISSING_IMAGE_CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const SAFE_IMAGE_TYPES = new Set([
+  "image/avif",
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/webp"
+]);
 
 interface CachedImage {
   dataUrl: string;
@@ -33,7 +40,9 @@ export async function fetchImageDataUrl(
     if (!response.ok) return "";
 
     const contentType = response.headers.get("content-type")?.split(";")[0] ?? "";
-    if (!contentType.startsWith("image/")) return "";
+    if (!SAFE_IMAGE_TYPES.has(contentType)) return "";
+    const contentLength = Number(response.headers.get("content-length"));
+    if (Number.isFinite(contentLength) && contentLength > MAX_IMAGE_BYTES) return "";
     const bytes = Buffer.from(await response.arrayBuffer());
     if (bytes.length > MAX_IMAGE_BYTES) return "";
     return `data:${contentType};base64,${bytes.toString("base64")}`;

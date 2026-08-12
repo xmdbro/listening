@@ -12,12 +12,22 @@ interface CachedWeather {
   expiresAt: number;
 }
 
+interface WeatherCoordinates {
+  latitude: number;
+  longitude: number;
+}
+
 const WEATHER_CACHE_PREFIX = "listening:weather:v1";
 const WEATHER_CACHE_TTL_MS = 10 * 60 * 1000;
 const pendingWeather = new Map<string, Promise<WeatherData>>();
+let browserPosition: GeolocationPosition | null = null;
+let pendingPosition: Promise<GeolocationPosition> | null = null;
 
 function getPosition(): Promise<GeolocationPosition> {
-  return new Promise((resolve, reject) => {
+  if (browserPosition) return Promise.resolve(browserPosition);
+  if (pendingPosition) return pendingPosition;
+
+  const request = new Promise<GeolocationPosition>((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error("Geolocation is not supported by this browser."));
       return;
@@ -28,7 +38,16 @@ function getPosition(): Promise<GeolocationPosition> {
       maximumAge: 15 * 60 * 1000,
       timeout: 10_000
     });
-  });
+  })
+    .then((position) => {
+      browserPosition = position;
+      return position;
+    })
+    .finally(() => {
+      pendingPosition = null;
+    });
+  pendingPosition = request;
+  return request;
 }
 
 function cacheKey(latitude: number, longitude: number): string {
@@ -79,10 +98,16 @@ async function requestLocalWeather(latitude: number, longitude: number): Promise
   return payload;
 }
 
-function fetchLocalWeather(latitude: number, longitude: number): Promise<WeatherData> {
+function fetchLocalWeather(
+  latitude: number,
+  longitude: number,
+  forceRefresh = false
+): Promise<WeatherData> {
   const key = cacheKey(latitude, longitude);
-  const cached = readCachedWeather(key);
-  if (cached) return Promise.resolve(cached);
+  if (!forceRefresh) {
+    const cached = readCachedWeather(key);
+    if (cached) return Promise.resolve(cached);
+  }
 
   const existingRequest = pendingWeather.get(key);
   if (existingRequest) return existingRequest;
@@ -99,7 +124,10 @@ function fetchLocalWeather(latitude: number, longitude: number): Promise<Weather
   return request;
 }
 
-export function useWeather(enabled: boolean): WeatherState {
+export function useWeather(
+  enabled: boolean,
+  customCoordinates: WeatherCoordinates | null = null
+): WeatherState {
   const [state, setState] = useState<WeatherState>({
     data: null,
     error: null,
@@ -111,12 +139,13 @@ export function useWeather(enabled: boolean): WeatherState {
     let active = true;
     setState((current) => ({ ...current, error: null, loading: true }));
 
-    async function load(): Promise<void> {
+    async function load(forceRefresh = false): Promise<void> {
       try {
-        const position = await getPosition();
+        const coordinates = customCoordinates ?? (await getPosition()).coords;
         const weather = await fetchLocalWeather(
-          position.coords.latitude,
-          position.coords.longitude
+          coordinates.latitude,
+          coordinates.longitude,
+          forceRefresh
         );
         if (active) setState({ data: weather, error: null, loading: false });
       } catch (error) {
@@ -131,8 +160,14 @@ export function useWeather(enabled: boolean): WeatherState {
     }
 
     void load();
-    return () => { active = false; };
-  }, [enabled]);
+    const interval = window.setInterval(() => {
+      void load(true);
+    }, WEATHER_CACHE_TTL_MS);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [customCoordinates?.latitude, customCoordinates?.longitude, enabled]);
 
   return state;
 }
