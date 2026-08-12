@@ -9,6 +9,8 @@ A self-hosted fullscreen Last.fm now-playing display with artwork, local weather
   <a href="https://listening-xmdb.vercel.app/">
     <img src="https://listening-xmdb.vercel.app/now.svg?name=Lance" alt="Lance's now playing status">
   </a>
+  <br>
+  <sub><i>(this is live)</i></sub>
 </p>
 
 ## Overview
@@ -112,10 +114,8 @@ npm run dev
 
 `npm run check` runs the complete test suite, TypeScript validation, and a production build.
 
-## Moving forward
+## Moving Forward...
 
-As things stand right now, this is primarily a self-hosted service. The tracked Last.fm username remains a deployment setting, while visitors can customize the public display name locally. Supporting multiple tracked users would require a different persistence and hosting model.
+As things stand right now, this is more of a self-hosted service. In the future I may add the ability to change usernames. For now I opted out of that to avoid fees. Additionally, I understand that most people won't have a last.fm account and thus integration with Spotify or Apple Music in the future may be an option also.
 
-Spotify or Apple Music playback integrations may also be explored for people who do not use Last.fm.
-
-Pull requests are welcome.
+I am always open to PRs.
