@@ -1,39 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
+import { SettingsPanel } from "./components/SettingsPanel";
 import { useArtworkColors } from "./hooks/useArtworkColors";
 import { useNowPlaying } from "./hooks/useNowPlaying";
 import { useTrackTransition } from "./hooks/useTrackTransition";
 import { useWeather } from "./hooks/useWeather";
+import {
+  customWeatherCoordinates,
+  loadPreferences,
+  savePreferences,
+  type BackgroundType,
+  type Feature,
+  type Preferences
+} from "./preferences";
 import type { NowPlayingData } from "./types";
 import { weatherIconClass } from "./weather";
-
-interface Features {
-  weather: boolean;
-  time: boolean;
-  extended: boolean;
-}
-
-type Feature = keyof Features;
-
-const defaultFeatures: Features = {
-  weather: true,
-  time: true,
-  extended: true
-};
-
-function loadFeatures(): Features {
-  try {
-    const saved = localStorage.getItem("listening:features");
-    return saved ? { ...defaultFeatures, ...JSON.parse(saved) as Partial<Features> } : defaultFeatures;
-  } catch {
-    return defaultFeatures;
-  }
-}
 
 function formatScrobbles(value: number | null): string {
   return value === null ? "" : new Intl.NumberFormat().format(value);
 }
 
-function TimePanel({ visible }: { visible: boolean }): React.JSX.Element {
+function TimePanel({
+  visible,
+  use24HourTime,
+  showWeekday,
+  showSeconds
+}: {
+  visible: boolean;
+  use24HourTime: boolean;
+  showWeekday: boolean;
+  showSeconds: boolean;
+}): React.JSX.Element {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -42,6 +38,7 @@ function TimePanel({ visible }: { visible: boolean }): React.JSX.Element {
   }, []);
 
   const date = new Intl.DateTimeFormat(undefined, {
+    weekday: showWeekday ? "long" : undefined,
     month: "long",
     day: "numeric",
     year: "numeric"
@@ -49,8 +46,8 @@ function TimePanel({ visible }: { visible: boolean }): React.JSX.Element {
   const time = new Intl.DateTimeFormat(undefined, {
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
-    hour12: false
+    second: showSeconds ? "2-digit" : undefined,
+    hour12: !use24HourTime
   }).format(now);
 
   return (
@@ -61,8 +58,12 @@ function TimePanel({ visible }: { visible: boolean }): React.JSX.Element {
   );
 }
 
-function backgroundStyle(data: NowPlayingData | null): React.CSSProperties {
-  const url = data?.artistImageUrl || data?.track?.imageUrl;
+function backgroundStyle(data: NowPlayingData | null, type: BackgroundType): React.CSSProperties {
+  const url = type === "artist"
+    ? data?.artistImageUrl || data?.track?.imageUrl
+    : type === "album"
+      ? data?.track?.imageUrl || data?.artistImageUrl
+      : "";
   return {
     "--cover-url": url ? `url("${url.replaceAll('"', "%22")}")` : "none"
   } as React.CSSProperties;
@@ -116,11 +117,16 @@ function MusicPanel({
 export default function App(): React.JSX.Element {
   const { data, error, loading } = useNowPlaying();
   const transition = useTrackTransition(data);
-  const [features, setFeatures] = useState(loadFeatures);
+  const [preferences, setPreferences] = useState(loadPreferences);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpVisible, setHelpVisible] = useState(true);
   const [helpHovered, setHelpHovered] = useState(false);
   const [cursorHidden, setCursorHidden] = useState(false);
-  const weather = useWeather(features.weather);
+  const coordinates = useMemo(
+    () => customWeatherCoordinates(preferences),
+    [preferences.weatherLatitude, preferences.weatherLongitude]
+  );
+  const weather = useWeather(preferences.weather, coordinates);
   const presentedData = transition.current;
   const track = presentedData?.track ?? null;
   const colors = useArtworkColors(track?.imageUrl);
@@ -132,11 +138,17 @@ export default function App(): React.JSX.Element {
   }) as React.CSSProperties, [colors]);
 
   function toggle(feature: Feature): void {
-    setFeatures((current) => {
+    setPreferences((current) => {
       const next = { ...current, [feature]: !current[feature] };
-      localStorage.setItem("listening:features", JSON.stringify(next));
+      savePreferences(next);
       return next;
     });
+  }
+
+  function applyPreferences(next: Preferences): void {
+    setPreferences(next);
+    savePreferences(next);
+    setSettingsOpen(false);
   }
 
   useEffect(() => {
@@ -166,6 +178,12 @@ export default function App(): React.JSX.Element {
       if (target?.matches("input, textarea, select, [contenteditable='true']")) return;
       const key = event.key.toLowerCase();
 
+      if (key === "s") {
+        event.preventDefault();
+        setSettingsOpen((open) => !open);
+        return;
+      }
+
       if (key === "h") {
         event.preventDefault();
         setHelpVisible((visible) => !visible);
@@ -193,26 +211,34 @@ export default function App(): React.JSX.Element {
   }, [track]);
 
   return (
-    <div className={`listening ${cursorHidden ? "cursor-hidden" : ""} ${transition.transitioning ? "track-transitioning" : ""}`} style={displayStyle}>
+    <div
+      className={`listening background-${preferences.backgroundType} ${preferences.blurBackground ? "background-blurred" : ""} ${cursorHidden && !settingsOpen ? "cursor-hidden" : ""} ${transition.transitioning ? "track-transitioning" : ""}`}
+      style={displayStyle}
+    >
       <div className="background-stack" aria-hidden="true">
         {transition.outgoing && (
-          <div className="background background-outgoing" style={backgroundStyle(transition.outgoing)} />
+          <div className="background background-outgoing" style={backgroundStyle(transition.outgoing, preferences.backgroundType)} />
         )}
         <div
           key={`${track?.artist ?? "idle"}-${track?.name ?? ""}`}
           className={`background ${transition.transitioning ? "background-incoming" : "background-current"}`}
-          style={backgroundStyle(presentedData)}
+          style={backgroundStyle(presentedData, preferences.backgroundType)}
         />
       </div>
 
       <main className="container">
         <div className="row top">
           <div className="corner left">
-            <TimePanel visible={features.time} />
+            <TimePanel
+              visible={preferences.time}
+              use24HourTime={preferences.use24HourTime}
+              showWeekday={preferences.showWeekday}
+              showSeconds={preferences.showSeconds}
+            />
           </div>
 
           <div className="corner right">
-            <section className={`weather fade ${features.weather ? "visible" : "hidden"}`} aria-live="polite" aria-hidden={!features.weather}>
+            <section className={`weather fade ${preferences.weather ? "visible" : "hidden"}`} aria-live="polite" aria-hidden={!preferences.weather}>
               {weather.loading && <h2>Finding local weather...</h2>}
               {weather.error && <h2>{weather.error}</h2>}
               {weather.data && (
@@ -248,17 +274,20 @@ export default function App(): React.JSX.Element {
                   </a>
                 )}
               </div>
-              <button type="button" tabIndex={controlsVisible ? 0 : -1} aria-pressed={features.weather} onClick={() => toggle("weather")}>
+              <button type="button" tabIndex={controlsVisible ? 0 : -1} aria-pressed={preferences.weather} onClick={() => toggle("weather")}>
                 <i className="fa-solid fa-sun fa-fw" aria-hidden="true" /> [w]eather
               </button>
-              <button type="button" tabIndex={controlsVisible ? 0 : -1} aria-pressed={features.time} onClick={() => toggle("time")}>
+              <button type="button" tabIndex={controlsVisible ? 0 : -1} aria-pressed={preferences.time} onClick={() => toggle("time")}>
                 <i className="fa-solid fa-clock fa-fw" aria-hidden="true" /> [t]ime and date
               </button>
-              <button type="button" tabIndex={controlsVisible ? 0 : -1} aria-pressed={features.extended} onClick={() => toggle("extended")}>
+              <button type="button" tabIndex={controlsVisible ? 0 : -1} aria-pressed={preferences.extended} onClick={() => toggle("extended")}>
                 <i className="fa-solid fa-note-sticky fa-fw" aria-hidden="true" /> [e]xtended info
               </button>
               <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={() => setHelpVisible(false)}>
                 <i className="fa-solid fa-question fa-fw" aria-hidden="true" /> [h]elp
+              </button>
+              <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={() => setSettingsOpen(true)}>
+                <i className="fa-solid fa-sliders fa-fw" aria-hidden="true" /> [s]ettings
               </button>
             </nav>
           </div>
@@ -268,13 +297,13 @@ export default function App(): React.JSX.Element {
             {error && <p className="error-message">{error}</p>}
 
             {transition.outgoing && (
-              <MusicPanel data={transition.outgoing} extended={features.extended} phase="outgoing" />
+              <MusicPanel data={transition.outgoing} extended={preferences.extended} phase="outgoing" />
             )}
             {presentedData?.track && (
               <MusicPanel
                 key={`${track?.artist ?? ""}-${track?.name ?? ""}`}
                 data={presentedData}
-                extended={features.extended}
+                extended={preferences.extended}
                 phase={transition.transitioning ? "incoming" : "current"}
               />
             )}
@@ -287,6 +316,13 @@ export default function App(): React.JSX.Element {
           </div>
         </div>
       </main>
+      {settingsOpen && (
+        <SettingsPanel
+          preferences={preferences}
+          onCancel={() => setSettingsOpen(false)}
+          onSave={applyPreferences}
+        />
+      )}
     </div>
   );
 }

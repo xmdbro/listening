@@ -12,6 +12,11 @@ interface CachedWeather {
   expiresAt: number;
 }
 
+interface WeatherCoordinates {
+  latitude: number;
+  longitude: number;
+}
+
 const WEATHER_CACHE_PREFIX = "listening:weather:v1";
 const WEATHER_CACHE_TTL_MS = 10 * 60 * 1000;
 const pendingWeather = new Map<string, Promise<WeatherData>>();
@@ -119,7 +124,10 @@ function fetchLocalWeather(
   return request;
 }
 
-export function useWeather(enabled: boolean): WeatherState {
+export function useWeather(
+  enabled: boolean,
+  customCoordinates: WeatherCoordinates | null = null
+): WeatherState {
   const [state, setState] = useState<WeatherState>({
     data: null,
     error: null,
@@ -133,10 +141,10 @@ export function useWeather(enabled: boolean): WeatherState {
 
     async function load(forceRefresh = false): Promise<void> {
       try {
-        const position = await getPosition();
+        const coordinates = customCoordinates ?? (await getPosition()).coords;
         const weather = await fetchLocalWeather(
-          position.coords.latitude,
-          position.coords.longitude,
+          coordinates.latitude,
+          coordinates.longitude,
           forceRefresh
         );
         if (active) setState({ data: weather, error: null, loading: false });
@@ -159,7 +167,7 @@ export function useWeather(enabled: boolean): WeatherState {
       active = false;
       window.clearInterval(interval);
     };
-  }, [enabled]);
+  }, [customCoordinates?.latitude, customCoordinates?.longitude, enabled]);
 
   return state;
 }
