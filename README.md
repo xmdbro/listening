@@ -1,14 +1,14 @@
 # Listening
 
-A pretty now-playing display for Last.fm, with local weather, time, listening statistics, and embeddable status endpoints.
+A fullscreen Last.fm now-playing display with artwork, local weather, listening statistics, and embeddable status endpoints.
 
 ## Overview
 
-Listening follows the current or most recently scrobbled track from Last.fm. It displays the album cover, track and artist names, total scrobbles, and personal artist and track play counts.
+Listening follows the current or most recently scrobbled track from a configured Last.fm account. It displays the album cover, track and artist names, total scrobbles, and personal artist and track play counts.
 
-When Spotify credentials are available, Spotify supplies the album artwork and artist photo. The artist photo becomes the fullscreen background; if it is not available, Listening falls back to the selected album cover. Prominent colors from the cover are used throughout the display.
+When Spotify credentials are available, Spotify supplies the album artwork and artist photo. The artist photo is used as the default fullscreen background, falling back to the album cover when necessary. Colors extracted from the cover are brightened and applied to the track and artist text.
 
-Time, extended listening information, and waether are enabled by default. You may configure this in [App.tsx](src/App.tsx). Weather uses the browser's location and OpenWeatherMap. The cursor and controls fade away when inactive so the display can remain unobtrusive.
+Time, weather, and extended listening information are visible by default. Display preferences are stored locally in the visitor's browser.
 
 ## Controls
 
@@ -20,83 +20,87 @@ The controls appear briefly when the page opens and reappear when the bottom-lef
 | `t` | Toggle time and date |
 | `e` | Toggle extended Last.fm information |
 | `h` | Toggle the control menu |
+| `s` | Open or close Listening preferences |
+| `Esc` | Close Listening preferences |
 
-Display preferences are saved in local storage. Returning visitors keep their last selections, while new visitors begin with time, extended information, and weather visible.
+Press `s` to open the preferences panel. Changes are applied after selecting *Save preferences* and persist in local storage.
 
-## API Requirements
+Available preferences include:
 
-### Last.fm
+- A display name for the fullscreen listening label. This does not change the tracked Last.fm account.
+- Artist, album, or solid-black backgrounds. 
+- Background blur toggle.
+- Custom longitude and latitude for the weather.
+- 24-hour time, weekday, and seconds toggle display.
 
-Track metadata and personal listening statistics are provided by the [Last.fm API](https://www.last.fm/api).
+## Configuration
 
-Create a [Last.fm API account](https://www.last.fm/api/account/create) here.
+Copy `./.env.example` to `./.env` and fill out the services you want to use. Only Last.fm is required for playback data.
 
-The Last.fm shared secret and callback URL are not used. Listening checks for new playback data every 10 seconds while the page is open. Server-side caching and shared in-flight requests are done to reduce duplicate API calls.
+```env
+LASTFM_API_KEY=replace-with-your-lastfm-api-key
+LASTFM_USERNAME=replace-with-your-lastfm-username
 
-### Spotify (Images)
+SPOTIFY_CLIENT_ID=replace-with-your-spotify-client-id
+SPOTIFY_CLIENT_SECRET=replace-with-your-spotify-client-secret
 
-Album covers and artist photos can be provided by the [Spotify Web API](https://developer.spotify.com/documentation/web-api). 
-
-Listening uses Spotify's Client Credentials flow. It does not require a user login, authorization callback, refresh token, or _Spotify Premium account*_. If Spotify requires a redirect URI while creating the application, a local placeholder such as `http://127.0.0.1:3000/callback` is okay; Listening will not visit it.
-
-> *Not entirely sure if a premium account is required, I haven't tested
-
-Spotify is optional. Without it, the Last.fm album image is used for both the cover and background. Spotify access tokens renew automatically, and complete artwork results are cached for six hours.
-
-### Weather
-
-Weather is provided by the [OpenWeatherMap Current Weather API](https://openweathermap.org/current).
-
-Visitors must allow browser location access before weather can load. Coordinates are rounded before being sent to the server. Weather results are cached for ten minutes in browser storage, the running server instance, and HTTP caches.
+OPENWEATHERMAP_API_KEY=replace-with-your-openweathermap-api-key
+```
 
 ## Endpoints
 
-Listening exposes a few routes for external use like websites or profiles. They are intentionally not linked from the fullscreen display.
+Listening exposes several routes for websites, profile READMEs, and other integrations. They are intentionally not linked from the fullscreen display.
 
 | Route | Description |
 | --- | --- |
 | `/api/now-playing` | Normalized current or recent listening data as JSON |
-| `/api/weather?lat=14.56&lon=121.00` | Cached OpenWeatherMap data for a location |
+| `/api/weather?lat=14.56&lon=121.00` | Cached OpenWeatherMap conditions for a location |
 | `/api/card` | Artwork-backed now-playing SVG |
 | `/now.svg` | Short alias for the SVG card |
+| `/now.svg?name=Lance` | SVG card with a public display-name override |
 
-Example GitHub profile embed: (this is live)
+The `name` query parameter only changes the label rendered in that card. It never changes `LASTFM_USERNAME` or the account being tracked. URL-encode names containing spaces.
 
-[![Lance's now playing status](https://listening-xmdb.vercel.app/now.svg)](https://listening-xmdb.vercel.app/)
+Example GitHub profile embed:
+
+[![Lance's now playing status](https://listening-xmdb.vercel.app/now.svg?name=Lance)](https://listening-xmdb.vercel.app/)
+
 ```md
-[![Lance's now playing status](https://listening-xmdb.vercel.app/now.svg)](https://listening-xmdb.vercel.app/)
+[![Lance's now playing status](https://listening-xmdb.vercel.app/now.svg?name=Lance)](https://listening-xmdb.vercel.app/)
 ```
 
-<!-- ## Usage
+## API requirements
 
-Install [Node.js 22](https://nodejs.org/). Listening uses Vite, so make sure to restart the server after changing any server-side functions.
+### Last.fm
 
-```sh
-npm install
-```
+Track metadata and personal listening statistics come from the [Last.fm API](https://www.last.fm/api). Create a [Last.fm API account](https://www.last.fm/api/account/create) and configure its API key and the username to track.
 
-Copy `.env.example` to `.env`, add the API credentials described below, and
-start the local server:
+The Last.fm shared secret and callback URL are not used. Listening checks for playback changes every seven seconds while the tab is visible and refreshes immediately when the tab regains focus. The current playback response is cached server-side for five seconds.
 
-```sh
-npm run dev
-```
+### Spotify artwork
 
-Listening is available at [http://localhost:3000](http://localhost:3000) by default. Set `PORT` in `.env` to use a different local port.
+Album covers and artist photos are provided by the [Spotify Web API](https://developer.spotify.com/documentation/web-api).
 
-## Development
+Listening uses the Client Credentials flow. It does not require an end-user login, authorization callback, or refresh token. If the Spotify dashboard requires a redirect URI while creating the application, `http://127.0.0.1:3000/callback` is okay because Listening does not visit it.
 
-Run the test suite and production build before deploying:
+Spotify is optional. Without it, the Last.fm album image is used for the cover and as the background fallback. Access tokens renew automatically (I believe so), and complete artwork results are cached for six hours.
 
-```sh
-npm test
-npm run build
-```
+### Weather
 
-The project uses React 19, TypeScript, Vite, plain CSS, Node.js 22, and Vercel Functions. -->
+Weather comes from the [OpenWeatherMap Current Weather API](https://openweathermap.org/current).
+
+By default, the browser requests location once per page session and reuses those coordinates. A custom latitude and longitude can be saved in Listening preferences instead. Weather results refresh every ten minutes and are cached in browser storage, the running server instance, and HTTP caches.
 
 ## Attribution
 
-Listening's visual language is heavily inspired by [Descent](https://github.com/JasonPuglisi/descent) by Jason Puglisi. Listening is written independently and does not include Descent's Philips Hue integration or configuration interface.
+Listening's visual language is heavily inspired by [Descent](https://github.com/JasonPuglisi/descent) by Jason Puglisi. Listening is written independently.
 
-Music data is provided by [Last.fm](https://www.last.fm/), artwork by [Spotify](https://spotify.com/) when configured, and weather data by [OpenWeatherMap](https://openweathermap.org/).
+Music data is provided by [Last.fm](https://www.last.fm/), artwork by [Spotify](https://spotify.com/) when configured, and weather data by [OpenWeatherMap](https://openweathermap.org/). The Last.fm favicon and interface mark use the Font Awesome Free icon.
+
+## Moving forward
+
+As things stand right now, this is primarily a self-hosted service. The tracked Last.fm username remains a deployment setting, while visitors can customize the public display name locally. Supporting multiple tracked users would require a different persistence and hosting model.
+
+Spotify or Apple Music playback integrations may also be explored for people who do not use Last.fm.
+
+Pull requests are welcome.
