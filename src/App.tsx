@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useArtworkColors } from "./hooks/useArtworkColors";
 import { useNowPlaying } from "./hooks/useNowPlaying";
+import { useTrackTransition } from "./hooks/useTrackTransition";
 import { useWeather } from "./hooks/useWeather";
+import type { NowPlayingData } from "./types";
 import { weatherIconClass } from "./weather";
 
 interface Features {
@@ -59,23 +61,75 @@ function TimePanel({ visible }: { visible: boolean }): React.JSX.Element {
   );
 }
 
+function backgroundStyle(data: NowPlayingData | null): React.CSSProperties {
+  const url = data?.artistImageUrl || data?.track?.imageUrl;
+  return {
+    "--cover-url": url ? `url("${url.replaceAll('"', "%22")}")` : "none"
+  } as React.CSSProperties;
+}
+
+function MusicPanel({
+  data,
+  extended,
+  phase = "current"
+}: {
+  data: NowPlayingData;
+  extended: boolean;
+  phase?: "current" | "incoming" | "outgoing";
+}): React.JSX.Element | null {
+  const track = data.track;
+  if (!track) return null;
+
+  return (
+    <div className={`music-panel ${phase}`} aria-hidden={phase === "outgoing" || undefined}>
+      <div className={`user-line transition-text fade ${extended ? "visible" : "hidden"}`} aria-hidden={!extended}>
+        {data.scrobbles !== null && (
+          <p className="scrobbles"><b>{formatScrobbles(data.scrobbles)}</b> scrobbles</p>
+        )}
+        {data.artistScrobbles !== null && data.trackScrobbles !== null && (
+          <p className="detailed-scrobbles">
+            <b>{formatScrobbles(data.artistScrobbles)}</b> this artist •{" "}
+            <b>{formatScrobbles(data.trackScrobbles)}</b> this track
+          </p>
+        )}
+        <h2>
+          <i className="fa-brands fa-lastfm" aria-hidden="true" />{" "}
+          {data.username} {data.isPlaying ? "is listening to" : "last listened to"}
+        </h2>
+      </div>
+
+      <a className="song-link" href={track.imageSourceUrl || track.url || undefined} target="_blank" rel="noreferrer">
+        {track.imageUrl ? (
+          <img className="cover" src={track.imageUrl} alt={track.album ? `Cover art for ${track.album}` : "Album cover"} />
+        ) : (
+          <div className="cover cover-placeholder" aria-label="No album cover available">♪</div>
+        )}
+      </a>
+      <div className="song-copy transition-text">
+        <h1 className="title">{track.name}</h1>
+        <h2 className="artist">{track.artist}</h2>
+      </div>
+    </div>
+  );
+}
+
 export default function App(): React.JSX.Element {
   const { data, error, loading } = useNowPlaying();
+  const transition = useTrackTransition(data);
   const [features, setFeatures] = useState(loadFeatures);
   const [helpVisible, setHelpVisible] = useState(true);
   const [helpHovered, setHelpHovered] = useState(false);
   const [cursorHidden, setCursorHidden] = useState(false);
   const weather = useWeather(features.weather);
-  const track = data?.track ?? null;
+  const presentedData = transition.current;
+  const track = presentedData?.track ?? null;
   const colors = useArtworkColors(track?.imageUrl);
   const controlsVisible = helpVisible || helpHovered;
-  const backgroundImageUrl = data?.artistImageUrl || track?.imageUrl;
 
   const displayStyle = useMemo<React.CSSProperties>(() => ({
-    "--cover-url": backgroundImageUrl ? `url("${backgroundImageUrl.replaceAll('"', "%22")}")` : "none",
     "--title-color": colors[0],
     "--artist-color": colors[1]
-  }) as React.CSSProperties, [backgroundImageUrl, colors]);
+  }) as React.CSSProperties, [colors]);
 
   function toggle(feature: Feature): void {
     setFeatures((current) => {
@@ -139,8 +193,17 @@ export default function App(): React.JSX.Element {
   }, [track]);
 
   return (
-    <div className={`listening ${cursorHidden ? "cursor-hidden" : ""}`} style={displayStyle}>
-      <div className="background blur" aria-hidden="true" />
+    <div className={`listening ${cursorHidden ? "cursor-hidden" : ""} ${transition.transitioning ? "track-transitioning" : ""}`} style={displayStyle}>
+      <div className="background-stack" aria-hidden="true">
+        {transition.outgoing && (
+          <div className="background background-outgoing" style={backgroundStyle(transition.outgoing)} />
+        )}
+        <div
+          key={`${track?.artist ?? "idle"}-${track?.name ?? ""}`}
+          className={`background ${transition.transitioning ? "background-incoming" : "background-current"}`}
+          style={backgroundStyle(presentedData)}
+        />
+      </div>
 
       <main className="container">
         <div className="row top">
@@ -179,8 +242,8 @@ export default function App(): React.JSX.Element {
                 <a href="https://github.com/xmdbro/listening" target="_blank" rel="noreferrer" tabIndex={controlsVisible ? 0 : -1}>
                   source <i className="fa-brands fa-github" aria-hidden="true" />
                 </a>
-                {data?.artistImageSourceUrl && (
-                  <a href={data.artistImageSourceUrl} target="_blank" rel="noreferrer" tabIndex={controlsVisible ? 0 : -1}>
+                {presentedData?.artistImageSourceUrl && (
+                  <a href={presentedData.artistImageSourceUrl} target="_blank" rel="noreferrer" tabIndex={controlsVisible ? 0 : -1}>
                     artist <i className="fa-brands fa-spotify" aria-hidden="true" />
                   </a>
                 )}
@@ -204,34 +267,16 @@ export default function App(): React.JSX.Element {
             {loading && <p className="loading-message">Checking Last.fm...</p>}
             {error && <p className="error-message">{error}</p>}
 
-            {track && (
-              <>
-                <div className={`user-line fade ${features.extended ? "visible" : "hidden"}`} aria-hidden={!features.extended}>
-                  {data?.scrobbles !== null && (
-                    <p className="scrobbles"><b>{formatScrobbles(data?.scrobbles ?? null)}</b> scrobbles</p>
-                  )}
-                  {data?.artistScrobbles !== null && data?.trackScrobbles !== null && (
-                    <p className="detailed-scrobbles">
-                      <b>{formatScrobbles(data?.artistScrobbles ?? null)}</b> this artist •{" "}
-                      <b>{formatScrobbles(data?.trackScrobbles ?? null)}</b> this track
-                    </p>
-                  )}
-                  <h2>
-                    <i className="fa-brands fa-lastfm" aria-hidden="true" />{" "}
-                    {data?.username} {data?.isPlaying ? "is listening to" : "last listened to"}
-                  </h2>
-                </div>
-
-                <a className="song-link" href={track.imageSourceUrl || track.url || undefined} target="_blank" rel="noreferrer">
-                  {track.imageUrl ? (
-                    <img className="cover" src={track.imageUrl} alt={track.album ? `Cover art for ${track.album}` : "Album cover"} />
-                  ) : (
-                    <div className="cover cover-placeholder" aria-label="No album cover available">♪</div>
-                  )}
-                </a>
-                <h1 className="title">{track.name}</h1>
-                <h2 className="artist">{track.artist}</h2>
-              </>
+            {transition.outgoing && (
+              <MusicPanel data={transition.outgoing} extended={features.extended} phase="outgoing" />
+            )}
+            {presentedData?.track && (
+              <MusicPanel
+                key={`${track?.artist ?? ""}-${track?.name ?? ""}`}
+                data={presentedData}
+                extended={features.extended}
+                phase={transition.transitioning ? "incoming" : "current"}
+              />
             )}
 
             {!loading && !error && !track && (

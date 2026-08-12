@@ -80,16 +80,34 @@ h2 {
   cursor: none !important;
 }
 
-.background {
+.background-stack {
   position: fixed;
-  inset: -3vmax;
+  inset: 0;
   z-index: -1;
+  overflow: hidden;
+}
+
+.background {
+  position: absolute;
+  inset: -3vmax;
   background-color: #35384a;
   background-image: var(--cover-url);
   background-position: center top;
   background-size: cover;
   filter: blur(1.25vmin);
-  transition: background-image 0.6s linear;
+}
+
+.background-outgoing {
+  z-index: 0;
+}
+
+.background-current,
+.background-incoming {
+  z-index: 1;
+}
+
+.background-incoming {
+  animation: background-wipe-down 1s cubic-bezier(0.65, 0, 0.2, 1) both;
 }
 
 .container {
@@ -189,7 +207,45 @@ h2 {
 }
 
 .music {
+  position: relative;
   min-width: 20vw;
+}
+
+.music-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.music-panel.outgoing {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+}
+
+.music-panel.current,
+.music-panel.incoming {
+  position: relative;
+  z-index: 2;
+}
+
+.music-panel.incoming .song-link {
+  position: relative;
+  z-index: 3;
+  animation: cover-slide-down 1s cubic-bezier(0.65, 0, 0.2, 1) both;
+}
+
+.music-panel.incoming .transition-text {
+  animation: track-text-in 0.38s ease-out 0.62s both;
+}
+
+.music-panel.outgoing .transition-text {
+  animation: track-text-out 0.28s ease-in both;
+}
+
+.music-panel.outgoing .song-link {
+  animation: old-cover-out 0.24s ease-in 0.76s both;
 }
 
 .user-line {
@@ -215,6 +271,10 @@ h2 {
 .song-link {
   display: inline-block;
   opacity: 1;
+}
+
+.song-copy {
+  text-align: right;
 }
 
 .cover {
@@ -251,6 +311,58 @@ h2 {
 .error-message {
   max-width: 24em;
   color: #ffd2d2;
+}
+
+@keyframes background-wipe-down {
+  from {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(-2%);
+  }
+
+  to {
+    clip-path: inset(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes cover-slide-down {
+  from {
+    transform: translateY(-100vh);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes track-text-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes track-text-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes old-cover-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
 }
 
 @media (min-width: 768px) {
@@ -298,6 +410,8 @@ h2 {
   *::before,
   *::after {
     scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
   }
 }
