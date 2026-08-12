@@ -18,7 +18,8 @@ async function send(response: Response, destination: ServerResponse): Promise<vo
 }
 
 const server = createServer(async (request, response) => {
-  const pathname = new URL(request.url ?? "/", `http://${request.headers.host}`).pathname;
+  const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
+  const pathname = url.pathname;
 
   if (pathname === "/api/now-playing") {
     await send(await createNowPlayingResponse(), response);
@@ -26,12 +27,11 @@ const server = createServer(async (request, response) => {
   }
 
   if (pathname === "/api/card" || pathname === "/now.svg") {
-    await send(await createCardResponse(), response);
+    await send(await createCardResponse(new Request(url)), response);
     return;
   }
 
   if (pathname === "/api/weather") {
-    const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
     await send(await createWeatherResponse(new Request(url)), response);
     return;
   }

@@ -73,10 +73,12 @@ type TrackPhase = "current" | "incoming" | "outgoing";
 
 function ExtendedTrackInfo({
   data,
+  displayName,
   extended,
   phase = "current"
 }: {
   data: NowPlayingData;
+  displayName: string;
   extended: boolean;
   phase?: TrackPhase;
 }): React.JSX.Element | null {
@@ -96,7 +98,7 @@ function ExtendedTrackInfo({
         )}
         <h2>
           <i className="fa-brands fa-lastfm" aria-hidden="true" />{" "}
-          {data.username} {data.isPlaying ? "is listening to" : "last listened to"}
+          {displayName || data.username} {data.isPlaying ? "is listening to" : "last listened to"}
         </h2>
     </div>
   );
@@ -139,11 +141,13 @@ function TrackCopy({ data, phase = "current" }: { data: NowPlayingData; phase?: 
 function MusicDisplay({
   current,
   outgoing,
+  displayName,
   extended,
   transitioning
 }: {
   current: NowPlayingData;
   outgoing: NowPlayingData | null;
+  displayName: string;
   extended: boolean;
   transitioning: boolean;
 }): React.JSX.Element {
@@ -152,8 +156,8 @@ function MusicDisplay({
   return (
     <div className="music-panel">
       <div className="extended-info-stack">
-        {outgoing && <ExtendedTrackInfo data={outgoing} extended={extended} phase="outgoing" />}
-        <ExtendedTrackInfo data={current} extended={extended} phase={currentPhase} />
+        {outgoing && <ExtendedTrackInfo data={outgoing} displayName={displayName} extended={extended} phase="outgoing" />}
+        <ExtendedTrackInfo data={current} displayName={displayName} extended={extended} phase={currentPhase} />
       </div>
       <div className="cover-stack">
         {outgoing && <CoverArt data={outgoing} phase="outgoing" />}
@@ -201,7 +205,6 @@ export default function App(): React.JSX.Element {
   function applyPreferences(next: Preferences): void {
     setPreferences(next);
     savePreferences(next);
-    setSettingsOpen(false);
   }
 
   useEffect(() => {
@@ -233,7 +236,7 @@ export default function App(): React.JSX.Element {
 
       if (key === "s") {
         event.preventDefault();
-        setSettingsOpen((open) => !open);
+        if (!settingsOpen) setSettingsOpen(true);
         return;
       }
 
@@ -354,6 +357,7 @@ export default function App(): React.JSX.Element {
                 key={`${track?.artist ?? ""}-${track?.name ?? ""}`}
                 current={presentedData}
                 outgoing={transition.outgoing}
+                displayName={preferences.displayName}
                 extended={preferences.extended}
                 transitioning={transition.transitioning}
               />

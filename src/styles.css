@@ -362,6 +362,12 @@ h2 {
   justify-content: flex-end;
   background: rgba(5, 5, 7, 0.34);
   backdrop-filter: blur(18px) brightness(0.58);
+  animation: settings-backdrop-in 0.24s ease-out both;
+}
+
+.settings-backdrop.closing {
+  pointer-events: none;
+  animation: settings-backdrop-out 0.22s ease-in both;
 }
 
 .settings-panel {
@@ -374,6 +380,10 @@ h2 {
   background: rgba(22, 22, 26, 0.9);
   box-shadow: 0 2rem 6rem rgba(0, 0, 0, 0.45);
   animation: settings-panel-in 0.24s ease-out both;
+}
+
+.settings-panel.closing {
+  animation: settings-panel-out 0.22s ease-in both;
 }
 
 .settings-panel form {
@@ -547,6 +557,20 @@ h2 {
   -moz-appearance: textfield;
 }
 
+.setting-text-input input {
+  width: 100%;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.5rem;
+  outline: none;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.setting-text-input input:focus-visible {
+  border-color: #d7d2ff;
+}
+
 .coordinate-grid input::-webkit-inner-spin-button,
 .coordinate-grid input::-webkit-outer-spin-button {
   margin: 0;
@@ -598,6 +622,38 @@ h2 {
   to {
     opacity: 1;
     transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes settings-panel-out {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(1.25rem) scale(0.985);
+  }
+}
+
+@keyframes settings-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes settings-backdrop-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
   }
 }
 

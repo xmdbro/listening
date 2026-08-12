@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { BackgroundType, Preferences } from "../preferences";
 import { validateWeatherCoordinates } from "../preferences";
 
@@ -17,17 +17,49 @@ const backgroundOptions: Array<{ value: BackgroundType; label: string; detail: s
 export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelProps): React.JSX.Element {
   const [draft, setDraft] = useState(preferences);
   const [error, setError] = useState<string | null>(null);
+  const [closing, setClosing] = useState(false);
+  const closingRef = useRef(false);
+  const closeTimeout = useRef<number | null>(null);
+  const onCancelRef = useRef(onCancel);
+
+  useEffect(() => {
+    onCancelRef.current = onCancel;
+  }, [onCancel]);
+
+  const beginClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    setClosing(true);
+    closeTimeout.current = window.setTimeout(() => onCancelRef.current(), 220);
+  }, []);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
       if (event.key === "Escape") {
         event.preventDefault();
-        onCancel();
+        beginClose();
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      if (
+        event.key.toLowerCase() === "s"
+        && !event.ctrlKey
+        && !event.metaKey
+        && !event.altKey
+        && !event.repeat
+        && !target?.matches("input, textarea, select, [contenteditable='true']")
+      ) {
+        event.preventDefault();
+        beginClose();
       }
     }
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onCancel]);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      if (closeTimeout.current !== null) window.clearTimeout(closeTimeout.current);
+    };
+  }, [beginClose]);
 
   function update<Key extends keyof Preferences>(key: Key, value: Preferences[Key]): void {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -43,20 +75,22 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
     }
     onSave({
       ...draft,
+      displayName: draft.displayName.trim(),
       weatherLatitude: draft.weatherLatitude.trim(),
       weatherLongitude: draft.weatherLongitude.trim()
     });
+    beginClose();
   }
 
   return (
     <div
-      className="settings-backdrop"
+      className={`settings-backdrop ${closing ? "closing" : ""}`}
       role="presentation"
       onPointerDown={(event) => {
-        if (event.target === event.currentTarget) onCancel();
+        if (event.target === event.currentTarget) beginClose();
       }}
     >
-      <section className="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <section className={`settings-panel ${closing ? "closing" : ""}`} role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <form onSubmit={submit}>
           <header className="settings-header">
             <div>
@@ -67,6 +101,20 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
           </header>
 
           <div className="settings-scroll">
+            <fieldset>
+              <legend><span>Display name</span></legend>
+              <div className="setting-text-input">
+                <input
+                  type="text"
+                  maxLength={40}
+                  aria-label="Display name"
+                  placeholder="e.g. Orpheus"
+                  value={draft.displayName}
+                  onChange={(event) => update("displayName", event.target.value)}
+                />
+              </div>
+            </fieldset>
+
             <fieldset>
               <legend><span>Background</span></legend>
               <div className="background-options">
@@ -140,7 +188,7 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
           </div>
 
           <footer className="settings-actions">
-            <button type="button" className="secondary" onClick={onCancel}>Cancel</button>
+            <button type="button" className="secondary" onClick={beginClose}>Cancel</button>
             <button type="submit" className="primary">Save preferences</button>
           </footer>
         </form>

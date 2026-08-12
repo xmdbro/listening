@@ -3,6 +3,7 @@ import type { NowPlayingData } from "./types.js";
 export interface NowPlayingSvgImages {
   background?: string;
   cover?: string;
+  displayName?: string;
 }
 
 function escapeXml(value: unknown): string {
@@ -51,7 +52,8 @@ export function renderNowPlayingSvg(
   const artist = hasTrack ? truncate(data.track?.artist, 40) : `last.fm/user/${data.username || "unknown"}`;
   const album = hasTrack ? truncate(data.track?.album, 45) : "Waiting for the next track";
   const status = formatListeningStatus(data, now);
-  const userLine = data.isPlaying ? `${data.username} is listening` : `${data.username} last listened`;
+  const displayName = truncate(images.displayName?.trim() || data.username, 40);
+  const userLine = data.isPlaying ? `${displayName} is listening` : `${displayName} last listened`;
   const scrobbles = formatScrobbles(data.scrobbles);
   const background = images.background || images.cover;
 
