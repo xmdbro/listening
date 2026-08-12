@@ -60,15 +60,15 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
         <form onSubmit={submit}>
           <header className="settings-header">
             <div>
-              <p className="settings-kicker">listening preferences</p>
-              <h1 id="settings-title">Settings</h1>
+              <p className="settings-kicker">display · weather · time</p>
+              <h1 id="settings-title">Listening preferences</h1>
             </div>
             <span className="settings-shortcut">[s]</span>
           </header>
 
           <div className="settings-scroll">
             <fieldset>
-              <legend>Background</legend>
+              <legend><span>Background</span></legend>
               <div className="background-options">
                 {backgroundOptions.map((option) => (
                   <label key={option.value} className={`background-option ${draft.backgroundType === option.value ? "selected" : ""}`}>
@@ -91,7 +91,7 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
             </fieldset>
 
             <fieldset>
-              <legend>Weather location</legend>
+              <legend><span>Weather location</span></legend>
               <p className="setting-description">Leave both fields blank to use your browser location.</p>
               <div className="coordinate-grid">
                 <label>
@@ -123,7 +123,7 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
             </fieldset>
 
             <fieldset>
-              <legend>Time and date</legend>
+              <legend><span>Time and date</span></legend>
               <label className="setting-toggle">
                 <span><strong>24-hour time</strong><small>Show 19:25 instead of 7:25 PM.</small></span>
                 <input type="checkbox" checked={draft.use24HourTime} onChange={(event) => update("use24HourTime", event.target.checked)} />
@@ -141,7 +141,7 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
 
           <footer className="settings-actions">
             <button type="button" className="secondary" onClick={onCancel}>Cancel</button>
-            <button type="submit" className="primary">Save changes</button>
+            <button type="submit" className="primary">Save preferences</button>
           </footer>
         </form>
       </section>

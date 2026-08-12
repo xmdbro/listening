@@ -287,7 +287,7 @@ export default function App(): React.JSX.Element {
                 <i className="fa-solid fa-question fa-fw" aria-hidden="true" /> [h]elp
               </button>
               <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={() => setSettingsOpen(true)}>
-                <i className="fa-solid fa-sliders fa-fw" aria-hidden="true" /> [s]ettings
+                <i className="fa-solid fa-sliders fa-fw" aria-hidden="true" /> [s] preferences
               </button>
             </nav>
           </div>
