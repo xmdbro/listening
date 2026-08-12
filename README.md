@@ -8,7 +8,7 @@ Listening follows the current or most recently scrobbled track from Last.fm. It 
 
 When Spotify credentials are available, Spotify supplies the album artwork and artist photo. The artist photo becomes the fullscreen background; if it is not available, Listening falls back to the selected album cover. Prominent colors from the cover are used throughout the display.
 
-Time, extended listening information are enabled by default. Weather is not. You may configure this in [App.tsx](src/App.tsx). Weather uses the browser's location and OpenWeatherMap. The cursor and controls fade away when inactive so the display can remain unobtrusive.
+Time, extended listening information, and waether are enabled by default. You may configure this in [App.tsx](src/App.tsx). Weather uses the browser's location and OpenWeatherMap. The cursor and controls fade away when inactive so the display can remain unobtrusive.
 
 ## Controls
 
@@ -21,7 +21,7 @@ The controls appear briefly when the page opens and reappear when the bottom-lef
 | `e` | Toggle extended Last.fm information |
 | `h` | Toggle the control menu |
 
-Display preferences are saved in local storage. Returning visitors keep their last selections, while new visitors begin with time, and extended information visible.
+Display preferences are saved in local storage. Returning visitors keep their last selections, while new visitors begin with time, extended information, and weather visible.
 
 ## API Requirements
 

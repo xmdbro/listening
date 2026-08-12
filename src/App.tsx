@@ -13,7 +13,7 @@ interface Features {
 type Feature = keyof Features;
 
 const defaultFeatures: Features = {
-  weather: false,
+  weather: true,
   time: true,
   extended: true
 };
