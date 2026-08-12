@@ -23,3 +23,24 @@ test("rejects untrusted artwork hosts", async () => {
   assert.equal(await fetchImageDataUrl("https://example.com/image.jpg", fetcher), "");
   assert.equal(requested, false);
 });
+
+test("rejects unsafe or oversized image responses", async () => {
+  const svgFetcher = (async () => new Response("<svg />", {
+    headers: { "content-type": "image/svg+xml" }
+  })) as typeof fetch;
+  const oversizedFetcher = (async () => new Response(new Uint8Array([1]), {
+    headers: {
+      "content-length": String(5 * 1024 * 1024 + 1),
+      "content-type": "image/jpeg"
+    }
+  })) as typeof fetch;
+
+  assert.equal(
+    await fetchImageDataUrl("https://i.scdn.co/image/example", svgFetcher),
+    ""
+  );
+  assert.equal(
+    await fetchImageDataUrl("https://i.scdn.co/image/example", oversizedFetcher),
+    ""
+  );
+});

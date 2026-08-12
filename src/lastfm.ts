@@ -5,6 +5,7 @@ import { getSpotifyArtworkFromEnvironment } from "./spotify.js";
 setDefaultResultOrder("ipv4first");
 
 const LASTFM_ENDPOINT = "https://ws.audioscrobbler.com/2.0/";
+const USER_AGENT = "listening/1.0.0 (personal now-playing display)";
 const CACHE_TTL_MS = 5_000;
 const DETAILS_CACHE_TTL_MS = 10 * 60 * 1000;
 const INCOMPLETE_DETAILS_CACHE_TTL_MS = 60 * 1000;
@@ -125,7 +126,7 @@ async function fetchInfo(
 
   try {
     const response = await fetcher(url, {
-      headers: { "user-agent": "listening/0.2 (personal now-playing display)" },
+      headers: { "user-agent": USER_AGENT },
       signal: AbortSignal.timeout(5_000)
     });
     if (!response.ok) return null;
@@ -220,7 +221,7 @@ export async function fetchNowPlaying({
   }).toString();
 
   const response = await fetcher(url, {
-    headers: { "user-agent": "listening/0.2 (personal now-playing display)" },
+    headers: { "user-agent": USER_AGENT },
     signal: AbortSignal.timeout(5_000)
   });
 

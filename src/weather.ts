@@ -91,20 +91,20 @@ export async function fetchWeather({
   longitude: number;
   fetcher?: typeof fetch;
 }): Promise<WeatherData> {
-  if (!apiKey) {
-    const error = new Error(
-      "Set OPENWEATHERMAP_API_KEY before requesting weather data."
-    ) as Error & { code: string };
-    error.code = "MISSING_CONFIGURATION";
-    throw error;
-  }
-
   if (
     !Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
     !Number.isFinite(longitude) || longitude < -180 || longitude > 180
   ) {
     const error = new Error("Latitude or longitude is invalid.") as Error & { code: string };
     error.code = "INVALID_COORDINATES";
+    throw error;
+  }
+
+  if (!apiKey) {
+    const error = new Error(
+      "Set OPENWEATHERMAP_API_KEY before requesting weather data."
+    ) as Error & { code: string };
+    error.code = "MISSING_CONFIGURATION";
     throw error;
   }
 

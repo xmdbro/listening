@@ -1,19 +1,17 @@
 import chroma from "chroma-js";
-import ColorThief from "colorthief";
+import { getPaletteSync, type Color } from "colorthief";
 import { useEffect, useState } from "react";
 
 const fallback = ["#f7f7f7", "#c4c4c4"] as const;
-const colorThief = new ColorThief();
 
-function brightenPaletteColor(color: ColorThief.RGBColor): string {
-  const value = chroma(color);
+function brightenPaletteColor(color: Color): string {
+  const value = chroma(color.array());
   const brightenFactor = 3 * (1 - value.luminance());
   return value.brighten(brightenFactor).hex();
 }
 
 function paletteFromImage(image: HTMLImageElement): readonly [string, string] {
-  const colors = colorThief
-    .getPalette(image, 3)
+  const colors = (getPaletteSync(image, { colorCount: 3 }) ?? [])
     .map(brightenPaletteColor);
 
   return [

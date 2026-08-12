@@ -12,6 +12,7 @@ import {
   type Feature,
   type Preferences
 } from "./preferences";
+import { formatListeningStatus } from "./svg";
 import type { NowPlayingData } from "./types";
 import { weatherIconClass } from "./weather";
 
@@ -90,15 +91,23 @@ function ExtendedTrackInfo({
         {data.scrobbles !== null && (
           <p className="scrobbles"><b>{formatScrobbles(data.scrobbles)}</b> scrobbles</p>
         )}
-        {data.artistScrobbles !== null && data.trackScrobbles !== null && (
+        {(data.artistScrobbles !== null || data.trackScrobbles !== null) && (
           <p className="detailed-scrobbles">
-            <b>{formatScrobbles(data.artistScrobbles)}</b> this artist •{" "}
-            <b>{formatScrobbles(data.trackScrobbles)}</b> this track
+            {data.artistScrobbles !== null && (
+              <><b>{formatScrobbles(data.artistScrobbles)}</b> this artist</>
+            )}
+            {data.artistScrobbles !== null && data.trackScrobbles !== null && " • "}
+            {data.trackScrobbles !== null && (
+              <><b>{formatScrobbles(data.trackScrobbles)}</b> this track</>
+            )}
           </p>
         )}
         <h2>
           <i className="fa-brands fa-lastfm" aria-hidden="true" />{" "}
           {displayName || data.username} {data.isPlaying ? "is listening to" : "last listened to"}
+          {!data.isPlaying && (
+            <span className="last-played-status"> · {formatListeningStatus(data)}</span>
+          )}
         </h2>
     </div>
   );

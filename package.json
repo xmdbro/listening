@@ -1,11 +1,19 @@
 {
   "name": "listening",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "A personal now-playing display and embeddable Last.fm status card.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xmdbro/listening.git"
+  },
+  "bugs": "https://github.com/xmdbro/listening/issues",
+  "homepage": "https://github.com/xmdbro/listening#readme",
   "scripts": {
     "build": "tsc --noEmit && vite build",
+    "check": "npm test && npm run build",
     "dev": "node --env-file-if-exists=.env --import tsx src/server.ts",
     "start": "node --env-file-if-exists=.env --import tsx src/server.ts",
     "test": "node --import tsx --test test/*.test.ts",
@@ -16,14 +24,13 @@
   },
   "dependencies": {
     "chroma-js": "^2.4.2",
-    "colorthief": "^2.6.0",
+    "colorthief": "^3.5.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@types/chroma-js": "^3.1.2",
-    "@types/colorthief": "^2.6.1",
-    "@types/node": "^26.2.0",
+    "@types/node": "^22.20.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",

@@ -1,6 +1,10 @@
 # Listening
 
-A fullscreen Last.fm now-playing display with artwork, local weather, listening statistics, and embeddable status endpoints.
+A self-hosted fullscreen Last.fm now-playing display with artwork, local weather, listening statistics, and embeddable status endpoints. Made in spite because Last.fm's `/now` profile endpoint is a premium only feature, and is... pretty bad... for the lack of a better word.
+
+<p align="center">
+  <img src="./.github/docs/demo.gif" alt="Listening demo" width="90%">
+</p>
 
 ## Overview
 
@@ -17,7 +21,7 @@ The controls appear briefly when the page opens and reappear when the bottom-lef
 | Key | Action |
 | --- | --- |
 | `w` | Toggle local weather |
-| `t` | Toggle time and date |
+| `t` | Toggle time and date |  
 | `e` | Toggle extended Last.fm information |
 | `h` | Toggle the control menu |
 | `s` | Open or close Listening preferences |
@@ -28,7 +32,7 @@ Press `s` to open the preferences panel. Changes are applied after selecting *Sa
 Available preferences include:
 
 - A display name for the fullscreen listening label. This does not change the tracked Last.fm account.
-- Artist, album, or solid-black backgrounds. 
+- Artist, album, or solid-black backgrounds.
 - Background blur toggle.
 - Custom longitude and latitude for the weather.
 - 24-hour time, weekday, and seconds toggle display.
@@ -83,7 +87,7 @@ Album covers and artist photos are provided by the [Spotify Web API](https://dev
 
 Listening uses the Client Credentials flow. It does not require an end-user login, authorization callback, or refresh token. If the Spotify dashboard requires a redirect URI while creating the application, `http://127.0.0.1:3000/callback` is okay because Listening does not visit it.
 
-Spotify is optional. Without it, the Last.fm album image is used for the cover and as the background fallback. Access tokens renew automatically (I believe so), and complete artwork results are cached for six hours.
+Spotify is optional. Without it, the Last.fm album image is used for the cover and as the background fallback. Access tokens renew automatically, and complete artwork results are cached for six hours.
 
 ### Weather
 
@@ -96,6 +100,18 @@ By default, the browser requests location once per page session and reuses those
 Listening's visual language is heavily inspired by [Descent](https://github.com/JasonPuglisi/descent) by Jason Puglisi. Listening is written independently.
 
 Music data is provided by [Last.fm](https://www.last.fm/), artwork by [Spotify](https://spotify.com/) when configured, and weather data by [OpenWeatherMap](https://openweathermap.org/). The Last.fm favicon and interface mark use the Font Awesome Free icon.
+
+## Development
+
+Listening requires Node.js 22.
+
+```sh
+npm ci
+npm run check
+npm run dev
+```
+
+`npm run check` runs the complete test suite, TypeScript validation, and a production build.
 
 ## Moving forward
 

@@ -45,8 +45,10 @@ async function getWeather(latitude: number, longitude: number): Promise<WeatherD
 export async function createWeatherResponse(request: Request): Promise<Response> {
   try {
     const url = new URL(request.url);
-    const latitude = Number(url.searchParams.get("lat"));
-    const longitude = Number(url.searchParams.get("lon"));
+    const latitudeValue = url.searchParams.get("lat");
+    const longitudeValue = url.searchParams.get("lon");
+    const latitude = latitudeValue?.trim() ? Number(latitudeValue) : Number.NaN;
+    const longitude = longitudeValue?.trim() ? Number(longitudeValue) : Number.NaN;
     const weather = await getWeather(latitude, longitude);
 
     return Response.json(weather, {
