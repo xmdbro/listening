@@ -15,10 +15,14 @@
     "node": "22.x"
   },
   "dependencies": {
+    "chroma-js": "^2.4.2",
+    "colorthief": "^2.6.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@types/chroma-js": "^3.1.2",
+    "@types/colorthief": "^2.6.1",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
