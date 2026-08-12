@@ -6,7 +6,7 @@ export async function createNowPlayingResponse(): Promise<Response> {
 
     return Response.json(data, {
       headers: {
-        "Cache-Control": "public, max-age=0, s-maxage=15, stale-while-revalidate=45"
+        "Cache-Control": "public, max-age=0, s-maxage=5, stale-while-revalidate=15"
       }
     });
   } catch (error) {

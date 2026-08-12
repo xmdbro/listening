@@ -7,7 +7,7 @@ interface NowPlayingState {
   loading: boolean;
 }
 
-export function useNowPlaying(refreshEvery = 15_000): NowPlayingState {
+export function useNowPlaying(refreshEvery = 7_000): NowPlayingState {
   const [state, setState] = useState<NowPlayingState>({
     data: null,
     error: null,

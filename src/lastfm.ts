@@ -5,7 +5,7 @@ import { getSpotifyArtworkFromEnvironment } from "./spotify.js";
 setDefaultResultOrder("ipv4first");
 
 const LASTFM_ENDPOINT = "https://ws.audioscrobbler.com/2.0/";
-const CACHE_TTL_MS = 10_000;
+const CACHE_TTL_MS = 5_000;
 const DETAILS_CACHE_TTL_MS = 10 * 60 * 1000;
 const INCOMPLETE_DETAILS_CACHE_TTL_MS = 60 * 1000;
 
