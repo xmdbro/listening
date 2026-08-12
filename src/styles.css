@@ -164,6 +164,11 @@ h2 {
   transition-delay: 0s;
 }
 
+.track-transitioning .datetime.visible,
+.track-transitioning .weather.visible {
+  animation: ambient-transition-dim 1.1s ease-in-out both;
+}
+
 .datetime,
 .weather {
   min-height: 5.25em;
@@ -225,35 +230,58 @@ h2 {
   align-items: flex-end;
 }
 
-.music-panel.outgoing {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  z-index: 1;
+.extended-info-stack {
+  position: relative;
+  width: 100%;
 }
 
-.music-panel.current,
-.music-panel.incoming {
+.track-layer.current,
+.track-layer.incoming {
   position: relative;
   z-index: 2;
 }
 
-.music-panel.incoming .song-link {
-  position: relative;
-  z-index: 3;
-  animation: cover-slide-down 1s cubic-bezier(0.65, 0, 0.2, 1) both;
+.track-layer.outgoing {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
 }
 
-.music-panel.incoming .transition-text {
+.cover-stack {
+  display: grid;
+}
+
+.cover-layer {
+  grid-area: 1 / 1;
+}
+
+.cover-layer.outgoing {
+  z-index: 1;
+}
+
+.cover-layer.current,
+.cover-layer.incoming {
+  z-index: 3;
+}
+
+.cover-layer.incoming {
+  animation: cover-wipe-down 1s cubic-bezier(0.65, 0, 0.2, 1) both;
+  will-change: clip-path;
+}
+
+.track-layer.incoming.transition-text {
   animation: track-text-in 0.38s ease-out 0.62s both;
 }
 
-.music-panel.outgoing .transition-text {
+.track-layer.outgoing.transition-text {
   animation: track-text-out 0.28s ease-in both;
 }
 
-.music-panel.outgoing .song-link {
-  animation: old-cover-out 0.24s ease-in 0.76s both;
+.song-copy-stack {
+  position: relative;
+  width: 100%;
+  height: 6em;
 }
 
 .user-line {
@@ -282,6 +310,9 @@ h2 {
 }
 
 .song-copy {
+  width: max-content;
+  max-width: 70vw;
+  margin-left: auto;
   text-align: right;
 }
 
@@ -582,13 +613,25 @@ h2 {
   }
 }
 
-@keyframes cover-slide-down {
+@keyframes ambient-transition-dim {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  22%,
+  72% {
+    opacity: 0.82;
+  }
+}
+
+@keyframes cover-wipe-down {
   from {
-    transform: translateY(-100vh);
+    clip-path: inset(0 0 100% 0);
   }
 
   to {
-    transform: translateY(0);
+    clip-path: inset(0);
   }
 }
 
@@ -603,16 +646,6 @@ h2 {
 }
 
 @keyframes track-text-out {
-  from {
-    opacity: 1;
-  }
-
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes old-cover-out {
   from {
     opacity: 1;
   }

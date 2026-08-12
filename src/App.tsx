@@ -69,21 +69,22 @@ function backgroundStyle(data: NowPlayingData | null, type: BackgroundType): Rea
   } as React.CSSProperties;
 }
 
-function MusicPanel({
+type TrackPhase = "current" | "incoming" | "outgoing";
+
+function ExtendedTrackInfo({
   data,
   extended,
   phase = "current"
 }: {
   data: NowPlayingData;
   extended: boolean;
-  phase?: "current" | "incoming" | "outgoing";
+  phase?: TrackPhase;
 }): React.JSX.Element | null {
   const track = data.track;
   if (!track) return null;
 
   return (
-    <div className={`music-panel ${phase}`} aria-hidden={phase === "outgoing" || undefined}>
-      <div className={`user-line transition-text fade ${extended ? "visible" : "hidden"}`} aria-hidden={!extended}>
+    <div className={`user-line track-layer ${phase} transition-text fade ${extended ? "visible" : "hidden"}`} aria-hidden={!extended || phase === "outgoing"}>
         {data.scrobbles !== null && (
           <p className="scrobbles"><b>{formatScrobbles(data.scrobbles)}</b> scrobbles</p>
         )}
@@ -97,18 +98,70 @@ function MusicPanel({
           <i className="fa-brands fa-lastfm" aria-hidden="true" />{" "}
           {data.username} {data.isPlaying ? "is listening to" : "last listened to"}
         </h2>
-      </div>
+    </div>
+  );
+}
 
-      <a className="song-link" href={track.imageSourceUrl || track.url || undefined} target="_blank" rel="noreferrer">
-        {track.imageUrl ? (
-          <img className="cover" src={track.imageUrl} alt={track.album ? `Cover art for ${track.album}` : "Album cover"} />
-        ) : (
-          <div className="cover cover-placeholder" aria-label="No album cover available">♪</div>
-        )}
-      </a>
-      <div className="song-copy transition-text">
-        <h1 className="title">{track.name}</h1>
-        <h2 className="artist">{track.artist}</h2>
+function CoverArt({ data, phase = "current" }: { data: NowPlayingData; phase?: TrackPhase }): React.JSX.Element | null {
+  const track = data.track;
+  if (!track) return null;
+
+  return (
+    <a
+      className={`song-link cover-layer ${phase}`}
+      href={track.imageSourceUrl || track.url || undefined}
+      target="_blank"
+      rel="noreferrer"
+      aria-hidden={phase === "outgoing" || undefined}
+      tabIndex={phase === "outgoing" ? -1 : undefined}
+    >
+      {track.imageUrl ? (
+        <img className="cover" src={track.imageUrl} alt={track.album ? `Cover art for ${track.album}` : "Album cover"} />
+      ) : (
+        <div className="cover cover-placeholder" aria-label="No album cover available">♪</div>
+      )}
+    </a>
+  );
+}
+
+function TrackCopy({ data, phase = "current" }: { data: NowPlayingData; phase?: TrackPhase }): React.JSX.Element | null {
+  const track = data.track;
+  if (!track) return null;
+
+  return (
+    <div className={`song-copy track-layer ${phase} transition-text`} aria-hidden={phase === "outgoing" || undefined}>
+      <h1 className="title">{track.name}</h1>
+      <h2 className="artist">{track.artist}</h2>
+    </div>
+  );
+}
+
+function MusicDisplay({
+  current,
+  outgoing,
+  extended,
+  transitioning
+}: {
+  current: NowPlayingData;
+  outgoing: NowPlayingData | null;
+  extended: boolean;
+  transitioning: boolean;
+}): React.JSX.Element {
+  const currentPhase = transitioning ? "incoming" : "current";
+
+  return (
+    <div className="music-panel">
+      <div className="extended-info-stack">
+        {outgoing && <ExtendedTrackInfo data={outgoing} extended={extended} phase="outgoing" />}
+        <ExtendedTrackInfo data={current} extended={extended} phase={currentPhase} />
+      </div>
+      <div className="cover-stack">
+        {outgoing && <CoverArt data={outgoing} phase="outgoing" />}
+        <CoverArt data={current} phase={currentPhase} />
+      </div>
+      <div className="song-copy-stack">
+        {outgoing && <TrackCopy data={outgoing} phase="outgoing" />}
+        <TrackCopy data={current} phase={currentPhase} />
       </div>
     </div>
   );
@@ -296,15 +349,13 @@ export default function App(): React.JSX.Element {
             {loading && <p className="loading-message">Checking Last.fm...</p>}
             {error && <p className="error-message">{error}</p>}
 
-            {transition.outgoing && (
-              <MusicPanel data={transition.outgoing} extended={preferences.extended} phase="outgoing" />
-            )}
             {presentedData?.track && (
-              <MusicPanel
+              <MusicDisplay
                 key={`${track?.artist ?? ""}-${track?.name ?? ""}`}
-                data={presentedData}
+                current={presentedData}
+                outgoing={transition.outgoing}
                 extended={preferences.extended}
-                phase={transition.transitioning ? "incoming" : "current"}
+                transitioning={transition.transitioning}
               />
             )}
 
