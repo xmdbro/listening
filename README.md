@@ -4,6 +4,11 @@ A self-hosted fullscreen Last.fm now-playing display with artwork, local weather
 
 <p align="center">
   <img src="./.github/docs/demo.gif" alt="Listening demo" width="90%">
+  <br>
+  <br>
+  <a href="https://listening-xmdb.vercel.app/">
+    <img src="https://listening-xmdb.vercel.app/now.svg?name=Lance" alt="Lance's now playing status">
+  </a>
 </p>
 
 ## Overview
@@ -66,12 +71,6 @@ Listening exposes several routes for websites, profile READMEs, and other integr
 The `name` query parameter only changes the label rendered in that card. It never changes `LASTFM_USERNAME` or the account being tracked. URL-encode names containing spaces.
 
 Example GitHub profile embed:
-
-[![Lance's now playing status](https://listening-xmdb.vercel.app/now.svg?name=Lance)](https://listening-xmdb.vercel.app/)
-
-```md
-[![Lance's now playing status](https://listening-xmdb.vercel.app/now.svg?name=Lance)](https://listening-xmdb.vercel.app/)
-```
 
 ## API requirements
 
