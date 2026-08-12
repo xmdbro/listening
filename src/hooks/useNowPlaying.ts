@@ -16,6 +16,7 @@ export function useNowPlaying(refreshEvery = 15_000): NowPlayingState {
 
   useEffect(() => {
     let active = true;
+    let pendingRefresh: Promise<void> | null = null;
 
     async function refresh(): Promise<void> {
       try {
@@ -43,14 +44,29 @@ export function useNowPlaying(refreshEvery = 15_000): NowPlayingState {
       }
     }
 
-    void refresh();
+    function requestRefresh(): void {
+      if (pendingRefresh) return;
+      pendingRefresh = refresh().finally(() => {
+        pendingRefresh = null;
+      });
+    }
+
+    requestRefresh();
     const interval = window.setInterval(() => {
-      if (!document.hidden) void refresh();
+      if (!document.hidden) requestRefresh();
     }, refreshEvery);
+
+    const refreshOnReturn = () => {
+      if (!document.hidden) requestRefresh();
+    };
+    document.addEventListener("visibilitychange", refreshOnReturn);
+    window.addEventListener("focus", refreshOnReturn);
 
     return () => {
       active = false;
       window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+      window.removeEventListener("focus", refreshOnReturn);
     };
   }, [refreshEvery]);
 
