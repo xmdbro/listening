@@ -38,7 +38,8 @@ Press `s` to open the preferences panel. Changes are applied after selecting *Sa
 
 Available preferences include:
 
-- A display name for the fullscreen listening label. This does not change the tracked Last.fm account.
+- A Last.fm username to follow, when custom users are enabled by the deployment.
+- A display name for the fullscreen listening label. This is independent of the tracked account.
 - Artist, album, or solid-black backgrounds.
 - Background blur toggle.
 - Custom longitude and latitude for the weather.
@@ -51,6 +52,7 @@ Copy `./.env.example` to `./.env` and fill out the services you want to use. Onl
 ```env
 LASTFM_API_KEY=replace-with-your-lastfm-api-key
 LASTFM_USERNAME=replace-with-your-lastfm-username
+ALLOW_CUSTOM_LASTFM_USERS=false
 
 SPOTIFY_CLIENT_ID=replace-with-your-spotify-client-id
 SPOTIFY_CLIENT_SECRET=replace-with-your-spotify-client-secret
@@ -65,12 +67,14 @@ Listening exposes several routes for websites, profile READMEs, and other integr
 | Route | Description |
 | --- | --- |
 | `/api/now-playing` | Normalized current or recent listening data as JSON |
+| `/api/now-playing?user=xmdb` | Listening data for a selected public Last.fm account |
 | `/api/weather?lat=14.56&lon=121.00` | Cached OpenWeatherMap conditions for a location |
 | `/api/card` | Artwork-backed now-playing SVG |
 | `/now.svg` | Short alias for the SVG card |
 | `/now.svg?name=Lance` | SVG card with a public display-name override |
+| `/now.svg?user=xmdb&name=Lance` | SVG card with account and display-name overrides |
 
-The `name` query parameter only changes the label rendered in that card. It never changes `LASTFM_USERNAME` or the account being tracked. URL-encode names containing spaces.
+The `user` query parameter selects the Last.fm account and requires `ALLOW_CUSTOM_LASTFM_USERS=true`. If it is omitted or blank, Listening uses `LASTFM_USERNAME`. The `name` parameter only changes the label rendered in a card. URL-encode names containing spaces.
 
 Example GitHub profile embed:
 
@@ -80,7 +84,9 @@ Example GitHub profile embed:
 
 Track metadata and personal listening statistics come from the [Last.fm API](https://www.last.fm/api). Create a [Last.fm API account](https://www.last.fm/api/account/create) and configure its API key and the username to track.
 
-The Last.fm shared secret and callback URL are not used. Listening checks for playback changes every seven seconds while the tab is visible and refreshes immediately when the tab regains focus. The current playback response is cached server-side for five seconds.
+The Last.fm shared secret and callback URL are not used. Listening checks for playback changes every seven seconds while the tab is visible and refreshes immediately when the tab regains focus. Playback responses are cached per account for five seconds. Personal play counts remain account-specific, while Spotify artwork and embedded card images are shared when accounts resolve to the same song or image.
+
+Custom accounts are disabled by default. Set `ALLOW_CUSTOM_LASTFM_USERS=true` to show data for usernames saved in visitor preferences or supplied through endpoint queries. On a public deployment, each newly requested username can result in additional Last.fm traffic.
 
 ### Spotify artwork
 
@@ -116,6 +122,6 @@ npm run dev
 
 ## Moving Forward...
 
-As things stand right now, this is more of a self-hosted service. In the future I may add the ability to change usernames. For now I opted out of that to avoid fees. Additionally, I understand that most people won't have a last.fm account and thus integration with Spotify or Apple Music in the future may be an option also.
+Listening remains primarily a self-hosted service, but deployments can opt in for user-slected Last.fm accounts. Note that this can increase API usage depending on traffic. Since not everyone has a Last.fm account, Spotify or Apple Music account integration may be an option in the future.
 
 I am always open to PRs.

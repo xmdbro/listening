@@ -7,7 +7,7 @@ interface NowPlayingState {
   loading: boolean;
 }
 
-export function useNowPlaying(refreshEvery = 7_000): NowPlayingState {
+export function useNowPlaying(username: string, refreshEvery = 7_000): NowPlayingState {
   const [state, setState] = useState<NowPlayingState>({
     data: null,
     error: null,
@@ -17,11 +17,21 @@ export function useNowPlaying(refreshEvery = 7_000): NowPlayingState {
   useEffect(() => {
     let active = true;
     let pendingRefresh: Promise<void> | null = null;
+    const controllers = new Set<AbortController>();
+    const selectedUsername = username.trim();
+    const query = selectedUsername
+      ? `?${new URLSearchParams({ user: selectedUsername }).toString()}`
+      : "";
+
+    setState({ data: null, error: null, loading: true });
 
     async function refresh(): Promise<void> {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 6_000);
+      controllers.add(controller);
       try {
-        const response = await fetch("/api/now-playing", {
-          signal: AbortSignal.timeout(6_000)
+        const response = await fetch(`/api/now-playing${query}`, {
+          signal: controller.signal
         });
         const payload = await response.json() as NowPlayingData & {
           error?: string;
@@ -37,10 +47,15 @@ export function useNowPlaying(refreshEvery = 7_000): NowPlayingState {
         if (active) {
           setState((current) => ({
             ...current,
-            error: error instanceof Error ? error.message : "Listening data is unavailable.",
+            error: error instanceof DOMException && error.name === "AbortError"
+              ? "Listening data is unavailable."
+              : error instanceof Error ? error.message : "Listening data is unavailable.",
             loading: false
           }));
         }
+      } finally {
+        window.clearTimeout(timeout);
+        controllers.delete(controller);
       }
     }
 
@@ -64,11 +79,12 @@ export function useNowPlaying(refreshEvery = 7_000): NowPlayingState {
 
     return () => {
       active = false;
+      controllers.forEach((controller) => controller.abort());
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", refreshOnReturn);
       window.removeEventListener("focus", refreshOnReturn);
     };
-  }, [refreshEvery]);
+  }, [refreshEvery, username]);
 
   return state;
 }

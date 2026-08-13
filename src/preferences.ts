@@ -2,6 +2,7 @@ export type BackgroundType = "artist" | "album" | "none";
 
 export interface Preferences {
   displayName: string;
+  lastFmUsername: string;
   weather: boolean;
   time: boolean;
   extended: boolean;
@@ -18,6 +19,7 @@ export type Feature = "weather" | "time" | "extended";
 
 export const defaultPreferences: Preferences = {
   displayName: "",
+  lastFmUsername: "",
   weather: true,
   time: true,
   extended: true,
@@ -60,6 +62,7 @@ function mergePreferences(value: unknown): Preferences {
     next.backgroundType = value.backgroundType;
   }
   if (typeof value.displayName === "string") next.displayName = value.displayName;
+  if (typeof value.lastFmUsername === "string") next.lastFmUsername = value.lastFmUsername;
   if (typeof value.weatherLatitude === "string") next.weatherLatitude = value.weatherLatitude;
   if (typeof value.weatherLongitude === "string") next.weatherLongitude = value.weatherLongitude;
   return next;
