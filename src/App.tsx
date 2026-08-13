@@ -187,6 +187,8 @@ export default function App(): React.JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpVisible, setHelpVisible] = useState(true);
   const [helpHovered, setHelpHovered] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuVisible, setMobileMenuVisible] = useState(true);
   const [cursorHidden, setCursorHidden] = useState(false);
   const coordinates = useMemo(
     () => customWeatherCoordinates(preferences),
@@ -216,10 +218,34 @@ export default function App(): React.JSX.Element {
     savePreferences(next);
   }
 
+  function openSettings(): void {
+    setMobileMenuOpen(false);
+    setSettingsOpen(true);
+  }
+
   useEffect(() => {
     const initialFade = window.setTimeout(() => setHelpVisible(false), 3_600);
     return () => window.clearTimeout(initialFade);
   }, []);
+
+  useEffect(() => {
+    let idleTimeout: number | undefined;
+
+    const showMobileMenu = () => {
+      setMobileMenuVisible(true);
+      if (idleTimeout !== undefined) window.clearTimeout(idleTimeout);
+      if (!mobileMenuOpen) {
+        idleTimeout = window.setTimeout(() => setMobileMenuVisible(false), 3_600);
+      }
+    };
+
+    showMobileMenu();
+    window.addEventListener("pointerdown", showMobileMenu, { passive: true });
+    return () => {
+      if (idleTimeout !== undefined) window.clearTimeout(idleTimeout);
+      window.removeEventListener("pointerdown", showMobileMenu);
+    };
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     let timeout = window.setTimeout(() => setCursorHidden(true), 3_000);
@@ -245,7 +271,7 @@ export default function App(): React.JSX.Element {
 
       if (key === "s") {
         event.preventDefault();
-        if (!settingsOpen) setSettingsOpen(true);
+        if (!settingsOpen) openSettings();
         return;
       }
 
@@ -351,7 +377,7 @@ export default function App(): React.JSX.Element {
               <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={() => setHelpVisible(false)}>
                 <i className="fa-solid fa-question fa-fw" aria-hidden="true" /> [h]elp
               </button>
-              <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={() => setSettingsOpen(true)}>
+              <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={openSettings}>
                 <i className="fa-solid fa-sliders fa-fw" aria-hidden="true" /> [s] preferences
               </button>
             </nav>
@@ -380,6 +406,41 @@ export default function App(): React.JSX.Element {
           </div>
         </div>
       </main>
+      <div className={`mobile-menu-shell ${mobileMenuOpen ? "open" : ""} ${mobileMenuVisible ? "awake" : "idle"}`}>
+        <nav id="mobile-display-menu" className="mobile-menu-drawer code" aria-label="Display controls" aria-hidden={!mobileMenuOpen}>
+          <div className="mobile-menu-links">
+            <a href="https://github.com/xmdbro/listening" target="_blank" rel="noreferrer" tabIndex={mobileMenuOpen ? 0 : -1}>
+              source <i className="fa-brands fa-github" aria-hidden="true" />
+            </a>
+            {presentedData?.artistImageSourceUrl && (
+              <a href={presentedData.artistImageSourceUrl} target="_blank" rel="noreferrer" tabIndex={mobileMenuOpen ? 0 : -1}>
+                artist <i className="fa-brands fa-spotify" aria-hidden="true" />
+              </a>
+            )}
+          </div>
+          <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} aria-pressed={preferences.weather} onClick={() => toggle("weather")}>
+            [w] weather
+          </button>
+          <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} aria-pressed={preferences.time} onClick={() => toggle("time")}>
+            [t] time and date
+          </button>
+          <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} aria-pressed={preferences.extended} onClick={() => toggle("extended")}>
+            [e] extended info
+          </button>
+          <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} onClick={openSettings}>
+            [s] preferences
+          </button>
+        </nav>
+        <button
+          type="button"
+          className="mobile-menu-toggle code"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-display-menu"
+          onClick={() => setMobileMenuOpen((open) => !open)}
+        >
+          [ {mobileMenuOpen ? "close" : "menu"} ]
+        </button>
+      </div>
       {settingsOpen && (
         <SettingsPanel
           preferences={preferences}
