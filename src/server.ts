@@ -22,7 +22,7 @@ const server = createServer(async (request, response) => {
   const pathname = url.pathname;
 
   if (pathname === "/api/now-playing") {
-    await send(await createNowPlayingResponse(), response);
+    await send(await createNowPlayingResponse(new Request(url)), response);
     return;
   }
 

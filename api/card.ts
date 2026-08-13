@@ -1,4 +1,5 @@
 import { getNowPlayingFromEnvironment } from "../src/lastfm.js";
+import { resolveLastFmUsername } from "../src/lastfm-user.js";
 import { getEmbeddedImage } from "../src/image-data.js";
 import { renderNowPlayingSvg } from "../src/svg.js";
 
@@ -18,8 +19,10 @@ function cardDisplayName(request?: Request): string {
 
 export async function createCardResponse(request?: Request): Promise<Response> {
   const displayName = cardDisplayName(request);
+  let username: string | undefined;
   try {
-    const data = await getNowPlayingFromEnvironment();
+    username = resolveLastFmUsername(request, process.env, ["user", "name"]);
+    const data = await getNowPlayingFromEnvironment(username);
     const coverUrl = data.track?.imageUrl ?? "";
     const backgroundUrl = data.artistImageUrl || coverUrl;
     const coverPromise = getEmbeddedImage(coverUrl);
@@ -35,12 +38,16 @@ export async function createCardResponse(request?: Request): Promise<Response> {
       }
     });
   } catch (error) {
-    const missingConfiguration =
-      error instanceof Error && "code" in error && error.code === "MISSING_CONFIGURATION";
+    const code = error instanceof Error && "code" in error ? error.code : undefined;
+    const status = code === "INVALID_USERNAME" ? 400
+      : code === "CUSTOM_USERS_DISABLED" ? 403
+      : code === "LASTFM_USER_NOT_FOUND" ? 404
+      : code === "MISSING_CONFIGURATION" ? 503
+      : 502;
 
     return new Response(
       renderNowPlayingSvg({
-        username: process.env.LASTFM_USERNAME ?? "unknown",
+        username: username ?? process.env.LASTFM_USERNAME ?? "unknown",
         isPlaying: false,
         scrobbles: null,
         artistScrobbles: null,
@@ -51,7 +58,7 @@ export async function createCardResponse(request?: Request): Promise<Response> {
         updatedAt: new Date().toISOString()
       }, { displayName }),
       {
-        status: missingConfiguration ? 503 : 502,
+        status,
         headers: {
           "Cache-Control": "no-store",
           "Content-Type": "image/svg+xml; charset=utf-8"

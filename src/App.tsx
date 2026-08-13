@@ -287,9 +287,9 @@ function MusicDisplay({
 }
 
 export default function App(): React.JSX.Element {
-  const { data, error, loading } = useNowPlaying();
-  const transition = useTrackTransition(data);
   const [preferences, setPreferences] = useState(loadPreferences);
+  const { data, error, loading } = useNowPlaying(preferences.lastFmUsername);
+  const transition = useTrackTransition(data);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpVisible, setHelpVisible] = useState(true);
   const [helpHovered, setHelpHovered] = useState(false);

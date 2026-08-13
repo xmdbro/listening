@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { getDefaultResultOrder } from "node:dns";
 import test from "node:test";
-import { fetchDetailedScrobbles, normalizeRecentTracks } from "../src/lastfm";
+import {
+  fetchDetailedScrobbles,
+  fetchNowPlaying,
+  getNowPlayingFromEnvironment,
+  normalizeRecentTracks
+} from "../src/lastfm";
+import { resolveLastFmUsername } from "../src/lastfm-user";
 import { formatListeningStatus, renderNowPlayingSvg } from "../src/svg";
 import { normalizeOpenWeatherMap, weatherIconClass, weatherSymbol } from "../src/weather";
 
@@ -67,6 +73,94 @@ test("loads personal artist and track scrobble counts", async () => {
     trackScrobbles: 156
   });
   assert.deepEqual(requestedMethods.sort(), ["artist.getInfo", "track.getInfo"]);
+});
+
+test("encodes a selected username as a Last.fm query parameter", async () => {
+  const fetcher = (async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+    assert.equal(url.origin, "https://ws.audioscrobbler.com");
+    assert.equal(url.searchParams.get("user"), "name&method=evil");
+    assert.equal(url.searchParams.get("method"), "user.getrecenttracks");
+    return Response.json({ recenttracks: { track: [] } });
+  }) as typeof fetch;
+
+  const result = await fetchNowPlaying({
+    apiKey: "key",
+    username: "name&method=evil",
+    fetcher
+  });
+  assert.equal(result.username, "name&method=evil");
+});
+
+test("isolates account status caches and deduplicates requests per user", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalApiKey = process.env.LASTFM_API_KEY;
+  const requestedUsers: string[] = [];
+  process.env.LASTFM_API_KEY = "cache-test-key";
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+    const username = url.searchParams.get("user") ?? "";
+    requestedUsers.push(username);
+    return Response.json({
+      recenttracks: {
+        "@attr": { total: username === "cache-user-a" ? "10" : "20" },
+        track: []
+      }
+    });
+  }) as typeof fetch;
+
+  try {
+    const [first, duplicate, second] = await Promise.all([
+      getNowPlayingFromEnvironment("cache-user-a"),
+      getNowPlayingFromEnvironment("cache-user-a"),
+      getNowPlayingFromEnvironment("cache-user-b")
+    ]);
+    assert.equal(first.scrobbles, 10);
+    assert.equal(duplicate.scrobbles, 10);
+    assert.equal(second.scrobbles, 20);
+    assert.deepEqual(requestedUsers.sort(), ["cache-user-a", "cache-user-b"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalApiKey === undefined) delete process.env.LASTFM_API_KEY;
+    else process.env.LASTFM_API_KEY = originalApiKey;
+  }
+});
+
+test("resolves custom usernames only when the deployment opts in", () => {
+  const request = new Request("https://example.com/api/now-playing?user=other-user");
+  assert.throws(
+    () => resolveLastFmUsername(request, { LASTFM_USERNAME: "default-user" }),
+    (error: unknown) => error instanceof Error
+      && "code" in error
+      && error.code === "CUSTOM_USERS_DISABLED"
+  );
+  assert.equal(resolveLastFmUsername(request, {
+    LASTFM_USERNAME: "default-user",
+    ALLOW_CUSTOM_LASTFM_USERS: "true"
+  }), "other-user");
+  assert.equal(resolveLastFmUsername(
+    new Request("https://example.com/api/now-playing"),
+    { LASTFM_USERNAME: "default-user" }
+  ), "default-user");
+});
+
+test("rejects duplicate or oversized username queries", () => {
+  const environment = {
+    LASTFM_USERNAME: "default-user",
+    ALLOW_CUSTOM_LASTFM_USERS: "true"
+  };
+  assert.throws(() => resolveLastFmUsername(
+    new Request("https://example.com/api/now-playing?user=one&user=two"),
+    environment
+  ), /only one/i);
+  assert.throws(() => resolveLastFmUsername(
+    new Request(`https://example.com/api/now-playing?user=${"x".repeat(65)}`),
+    environment
+  ), /64 characters/i);
+  assert.throws(() => resolveLastFmUsername(
+    new Request("https://example.com/api/now-playing?user=one&unused=value"),
+    environment
+  ), /unsupported query parameter/i);
 });
 
 test("keeps an available detail count when the other Last.fm lookup fails", async () => {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BackgroundType, Preferences } from "../preferences";
 import { validateWeatherCoordinates } from "../preferences";
+import { MAX_LASTFM_USERNAME_LENGTH, validateLastFmUsername } from "../lastfm-user";
 
 interface SettingsPanelProps {
   preferences: Preferences;
@@ -68,7 +69,8 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
 
   function submit(event: React.FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    const validationError = validateWeatherCoordinates(draft);
+    const validationError = validateLastFmUsername(draft.lastFmUsername)
+      ?? validateWeatherCoordinates(draft);
     if (validationError) {
       setError(validationError);
       return;
@@ -76,6 +78,7 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
     onSave({
       ...draft,
       displayName: draft.displayName.trim(),
+      lastFmUsername: draft.lastFmUsername.trim(),
       weatherLatitude: draft.weatherLatitude.trim(),
       weatherLongitude: draft.weatherLongitude.trim()
     });
@@ -94,15 +97,35 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
         <form onSubmit={submit}>
           <header className="settings-header">
             <div>
-              <p className="settings-kicker">display · weather · time</p>
+              <p className="settings-kicker">account · display · weather · time</p>
               <h1 id="settings-title">Listening preferences</h1>
             </div>
             <span className="settings-shortcut">[s]</span>
           </header>
 
           <div className="settings-scroll">
+            {error && <p className="settings-error" role="alert">{error}</p>}
+            <fieldset>
+              <legend><span>Last.fm account</span></legend>
+              <p className="setting-description">Choose the account to follow. Leave blank to use the server default.</p>
+              <div className="setting-text-input">
+                <input
+                  type="text"
+                  maxLength={MAX_LASTFM_USERNAME_LENGTH}
+                  aria-label="Last.fm username"
+                  placeholder="Server default"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  value={draft.lastFmUsername}
+                  onChange={(event) => update("lastFmUsername", event.target.value)}
+                />
+              </div>
+            </fieldset>
+
             <fieldset>
               <legend><span>Display name</span></legend>
+              <p className="setting-description">Optional label shown instead of the Last.fm username.</p>
               <div className="setting-text-input">
                 <input
                   type="text"
@@ -167,7 +190,6 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
                   />
                 </label>
               </div>
-              {error && <p className="settings-error" role="alert">{error}</p>}
             </fieldset>
 
             <fieldset>

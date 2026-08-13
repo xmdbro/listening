@@ -9,6 +9,8 @@ const USER_AGENT = "listening/1.0.0 (personal now-playing display)";
 const CACHE_TTL_MS = 5_000;
 const DETAILS_CACHE_TTL_MS = 10 * 60 * 1000;
 const INCOMPLETE_DETAILS_CACHE_TTL_MS = 60 * 1000;
+const MAX_NOW_PLAYING_CACHE_ENTRIES = 100;
+const MAX_DETAILS_CACHE_ENTRIES = 1_000;
 
 interface LastFmImage {
   "#text"?: unknown;
@@ -48,9 +50,42 @@ interface DetailedScrobblesCacheEntry extends DetailedScrobbles {
   expiresAt: number;
 }
 
-let cachedResult: NowPlayingData | undefined;
-let cachedUntil = 0;
+interface NowPlayingCacheEntry {
+  data: NowPlayingData;
+  expiresAt: number;
+}
+
+const nowPlayingCache = new Map<string, NowPlayingCacheEntry>();
+const pendingNowPlaying = new Map<string, Promise<NowPlayingData>>();
 const detailedScrobblesCache = new Map<string, DetailedScrobblesCacheEntry>();
+const pendingDetailedScrobbles = new Map<string, Promise<DetailedScrobbles>>();
+
+function cacheKeyPart(value: string): string {
+  return value.trim().toLocaleLowerCase();
+}
+
+function readCache<Key, Value>(cache: Map<Key, Value>, key: Key): Value | undefined {
+  const value = cache.get(key);
+  if (value === undefined) return undefined;
+  cache.delete(key);
+  cache.set(key, value);
+  return value;
+}
+
+function writeBoundedCache<Key, Value>(
+  cache: Map<Key, Value>,
+  key: Key,
+  value: Value,
+  maximumEntries: number
+): void {
+  cache.delete(key);
+  while (cache.size >= maximumEntries) {
+    const oldestKey = cache.keys().next().value as Key | undefined;
+    if (oldestKey === undefined) break;
+    cache.delete(oldestKey);
+  }
+  cache.set(key, value);
+}
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -175,23 +210,31 @@ async function getDetailedScrobbles(
   artist: string,
   track: string
 ): Promise<DetailedScrobbles> {
-  const key = `${username}\u0000${artist}\u0000${track}`.toLocaleLowerCase();
-  const cached = detailedScrobblesCache.get(key);
+  const key = [username, artist, track].map(cacheKeyPart).join("\u0000");
+  const cached = readCache(detailedScrobblesCache, key);
   if (cached && cached.expiresAt > Date.now()) return cached;
 
-  const fresh = await fetchDetailedScrobbles({ apiKey, username, artist, track });
-  const result = {
-    artistScrobbles: fresh.artistScrobbles ?? cached?.artistScrobbles ?? null,
-    trackScrobbles: fresh.trackScrobbles ?? cached?.trackScrobbles ?? null
-  };
-  const complete = result.artistScrobbles !== null && result.trackScrobbles !== null;
-  detailedScrobblesCache.set(key, {
-    ...result,
-    expiresAt: Date.now() + (
-      complete ? DETAILS_CACHE_TTL_MS : INCOMPLETE_DETAILS_CACHE_TTL_MS
-    )
-  });
-  return result;
+  const existingRequest = pendingDetailedScrobbles.get(key);
+  if (existingRequest) return existingRequest;
+
+  const request = fetchDetailedScrobbles({ apiKey, username, artist, track })
+    .then((fresh) => {
+      const result = {
+        artistScrobbles: fresh.artistScrobbles ?? cached?.artistScrobbles ?? null,
+        trackScrobbles: fresh.trackScrobbles ?? cached?.trackScrobbles ?? null
+      };
+      const complete = result.artistScrobbles !== null && result.trackScrobbles !== null;
+      writeBoundedCache(detailedScrobblesCache, key, {
+        ...result,
+        expiresAt: Date.now() + (
+          complete ? DETAILS_CACHE_TTL_MS : INCOMPLETE_DETAILS_CACHE_TTL_MS
+        )
+      }, MAX_DETAILS_CACHE_ENTRIES);
+      return result;
+    })
+    .finally(() => pendingDetailedScrobbles.delete(key));
+  pendingDetailedScrobbles.set(key, request);
+  return request;
 }
 
 export async function fetchNowPlaying({
@@ -229,49 +272,64 @@ export async function fetchNowPlaying({
     throw new Error(`Last.fm request failed with status ${response.status}.`);
   }
 
-  return normalizeRecentTracks(await response.json() as LastFmPayload, username);
+  const payload = await response.json() as LastFmPayload;
+  if (payload.error) {
+    const error = new Error(text(payload.message) || "Last.fm returned an error.") as Error & {
+      code: string;
+    };
+    error.code = Number(payload.error) === 6 ? "LASTFM_USER_NOT_FOUND" : "LASTFM_ERROR";
+    throw error;
+  }
+  return normalizeRecentTracks(payload, username);
 }
 
-export async function getNowPlayingFromEnvironment(): Promise<NowPlayingData> {
-  const now = Date.now();
-
-  if (cachedResult && now < cachedUntil) {
-    return cachedResult;
-  }
-
+export async function getNowPlayingFromEnvironment(
+  requestedUsername?: string
+): Promise<NowPlayingData> {
   const apiKey = process.env.LASTFM_API_KEY;
-  const username = process.env.LASTFM_USERNAME;
-  cachedResult = await fetchNowPlaying({
-    apiKey,
-    username
-  });
+  const username = requestedUsername?.trim() || process.env.LASTFM_USERNAME?.trim();
+  const key = cacheKeyPart(username ?? "");
+  const cached = readCache(nowPlayingCache, key);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
 
-  if (apiKey && username && cachedResult.track) {
-    const [details, spotifyArtwork] = await Promise.all([
-      getDetailedScrobbles(
-        apiKey,
-        username,
-        cachedResult.track.artist,
-        cachedResult.track.name
-      ),
-      getSpotifyArtworkFromEnvironment(
-        cachedResult.track.artist,
-        cachedResult.track.name
-      )
-    ]);
-    cachedResult = {
-      ...cachedResult,
-      ...details,
-      artistImageUrl: spotifyArtwork?.artistImageUrl ?? "",
-      artistImageSourceUrl: spotifyArtwork?.artistUrl ?? "",
-      track: {
-        ...cachedResult.track,
-        imageUrl: spotifyArtwork?.albumImageUrl || cachedResult.track.imageUrl,
-        imageSourceUrl: spotifyArtwork?.albumUrl || cachedResult.track.imageSourceUrl
+  const existingRequest = pendingNowPlaying.get(key);
+  if (existingRequest) return existingRequest;
+
+  const request = fetchNowPlaying({ apiKey, username })
+    .then(async (result) => {
+      if (apiKey && username && result.track) {
+        const [details, spotifyArtwork] = await Promise.all([
+          getDetailedScrobbles(
+            apiKey,
+            username,
+            result.track.artist,
+            result.track.name
+          ),
+          getSpotifyArtworkFromEnvironment(
+            result.track.artist,
+            result.track.name
+          )
+        ]);
+        result = {
+          ...result,
+          ...details,
+          artistImageUrl: spotifyArtwork?.artistImageUrl ?? "",
+          artistImageSourceUrl: spotifyArtwork?.artistUrl ?? "",
+          track: {
+            ...result.track,
+            imageUrl: spotifyArtwork?.albumImageUrl || result.track.imageUrl,
+            imageSourceUrl: spotifyArtwork?.albumUrl || result.track.imageSourceUrl
+          }
+        };
       }
-    };
-  }
-  cachedUntil = now + CACHE_TTL_MS;
 
-  return cachedResult;
+      writeBoundedCache(nowPlayingCache, key, {
+        data: result,
+        expiresAt: Date.now() + CACHE_TTL_MS
+      }, MAX_NOW_PLAYING_CACHE_ENTRIES);
+      return result;
+    })
+    .finally(() => pendingNowPlaying.delete(key));
+  pendingNowPlaying.set(key, request);
+  return request;
 }
