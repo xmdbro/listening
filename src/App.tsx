@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { useArtworkColors } from "./hooks/useArtworkColors";
 import { useNowPlaying } from "./hooks/useNowPlaying";
@@ -135,14 +135,120 @@ function CoverArt({ data, phase = "current" }: { data: NowPlayingData; phase?: T
   );
 }
 
+function AutoScrollText({
+  level: Tag,
+  className,
+  children
+}: {
+  level: "h1" | "h2";
+  className: string;
+  children: string;
+}): React.JSX.Element {
+  const containerRef = useRef<HTMLHeadingElement>(null);
+  const trackRef = useRef<HTMLSpanElement>(null);
+  const copyRef = useRef<HTMLSpanElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const track = trackRef.current;
+    const copy = copyRef.current;
+    if (!container || !track || !copy) return;
+
+    const mobile = window.matchMedia("(max-width: 700px)");
+    let animation: Animation | null = null;
+    let animationFrame: number | null = null;
+    let animationKey = "";
+
+    const stopAnimation = () => {
+      if (animationFrame !== null) {
+        window.cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+      }
+      animation?.cancel();
+      animation = null;
+      track.style.transform = "";
+    };
+
+    const update = () => {
+      const textWidth = Math.ceil(Math.max(
+        copy.getBoundingClientRect().width,
+        copy.scrollWidth,
+        copy.offsetWidth
+      ));
+      const containerWidth = container.clientWidth;
+      const shouldScroll = mobile.matches && textWidth > containerWidth + 1;
+      setOverflowing(shouldScroll);
+
+      const nextKey = `${shouldScroll}:${textWidth}:${containerWidth}`;
+      if (nextKey === animationKey) return;
+      animationKey = nextKey;
+      stopAnimation();
+
+      if (!shouldScroll) return;
+
+      const rootFontSize = Number.parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
+      const distance = textWidth + rootFontSize * 3;
+      const holdDuration = 2_200;
+      const travelDuration = distance / 32 * 1_000;
+      const totalDuration = holdDuration * 2 + travelDuration;
+      const travelStartsAt = holdDuration / totalDuration;
+      const travelEndsAt = (holdDuration + travelDuration) / totalDuration;
+
+      animationFrame = window.requestAnimationFrame(() => {
+        animationFrame = null;
+        animation = track.animate([
+          { transform: "translate3d(0, 0, 0)", offset: 0 },
+          { transform: "translate3d(0, 0, 0)", offset: travelStartsAt },
+          { transform: `translate3d(-${distance}px, 0, 0)`, offset: travelEndsAt },
+          { transform: `translate3d(-${distance}px, 0, 0)`, offset: 1 }
+        ], {
+          duration: totalDuration,
+          easing: "linear",
+          iterations: Infinity
+        });
+      });
+    };
+
+    const observer = new ResizeObserver(update);
+    observer.observe(container);
+    observer.observe(copy);
+    mobile.addEventListener("change", update);
+    window.addEventListener("resize", update);
+    update();
+
+    return () => {
+      stopAnimation();
+      observer.disconnect();
+      mobile.removeEventListener("change", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [children]);
+
+  return (
+    <Tag ref={containerRef} className={`${className} auto-scroll-text ${overflowing ? "overflowing" : ""}`}>
+      <span ref={trackRef} className="auto-scroll-track">
+        <span className="auto-scroll-segment">
+          <span ref={copyRef} className="auto-scroll-copy">{children}</span>
+        </span>
+        {overflowing && (
+          <span className="auto-scroll-segment" aria-hidden="true">
+            <span className="auto-scroll-copy">{children}</span>
+          </span>
+        )}
+      </span>
+    </Tag>
+  );
+}
+
 function TrackCopy({ data, phase = "current" }: { data: NowPlayingData; phase?: TrackPhase }): React.JSX.Element | null {
   const track = data.track;
   if (!track) return null;
 
   return (
     <div className={`song-copy track-layer ${phase} transition-text`} aria-hidden={phase === "outgoing" || undefined}>
-      <h1 className="title">{track.name}</h1>
-      <h2 className="artist">{track.artist}</h2>
+      <AutoScrollText level="h1" className="title">{track.name}</AutoScrollText>
+      <AutoScrollText level="h2" className="artist">{track.artist}</AutoScrollText>
     </div>
   );
 }

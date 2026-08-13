@@ -852,28 +852,71 @@ h2 {
     width: 100%;
     max-width: 100%;
     margin: 0 auto;
-    overflow-wrap: anywhere;
+    overflow: hidden;
     text-align: center;
   }
 
-  .title {
-    display: -webkit-box;
-    margin-top: 0.65rem;
+  .auto-scroll-text {
+    display: block;
+    width: 100%;
     overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .auto-scroll-track {
+    display: flex;
+    width: max-content;
+    min-width: 100%;
+    justify-content: center;
+  }
+
+  .auto-scroll-segment {
+    width: max-content;
+    flex: 0 0 auto;
+  }
+
+  .auto-scroll-copy {
+    display: inline-block;
+    width: max-content;
+  }
+
+  .auto-scroll-text.overflowing {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 0.85rem,
+      #000 calc(100% - 0.85rem),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 0.85rem,
+      #000 calc(100% - 0.85rem),
+      transparent 100%
+    );
+  }
+
+  .auto-scroll-text.overflowing .auto-scroll-track {
+    min-width: 0;
+    justify-content: flex-start;
+    will-change: transform;
+  }
+
+  .auto-scroll-text.overflowing .auto-scroll-segment {
+    padding-right: 3rem;
+  }
+
+  .title {
+    margin-top: 0.65rem;
     font-size: clamp(1.35rem, 6.5vw, 2rem);
     line-height: 1.08;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
   }
 
   .artist {
-    display: -webkit-box;
     margin-top: 0.35rem;
-    overflow: hidden;
     font-size: clamp(1rem, 4.5vw, 1.35rem);
     line-height: 1.1;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1;
   }
 
   .loading-message,
@@ -1153,4 +1196,5 @@ h2 {
     animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
   }
+
 }
