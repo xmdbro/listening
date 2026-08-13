@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { useArtworkColors } from "./hooks/useArtworkColors";
 import { useNowPlaying } from "./hooks/useNowPlaying";
@@ -135,14 +135,120 @@ function CoverArt({ data, phase = "current" }: { data: NowPlayingData; phase?: T
   );
 }
 
+function AutoScrollText({
+  level: Tag,
+  className,
+  children
+}: {
+  level: "h1" | "h2";
+  className: string;
+  children: string;
+}): React.JSX.Element {
+  const containerRef = useRef<HTMLHeadingElement>(null);
+  const trackRef = useRef<HTMLSpanElement>(null);
+  const copyRef = useRef<HTMLSpanElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const track = trackRef.current;
+    const copy = copyRef.current;
+    if (!container || !track || !copy) return;
+
+    const mobile = window.matchMedia("(max-width: 700px)");
+    let animation: Animation | null = null;
+    let animationFrame: number | null = null;
+    let animationKey = "";
+
+    const stopAnimation = () => {
+      if (animationFrame !== null) {
+        window.cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+      }
+      animation?.cancel();
+      animation = null;
+      track.style.transform = "";
+    };
+
+    const update = () => {
+      const textWidth = Math.ceil(Math.max(
+        copy.getBoundingClientRect().width,
+        copy.scrollWidth,
+        copy.offsetWidth
+      ));
+      const containerWidth = container.clientWidth;
+      const shouldScroll = mobile.matches && textWidth > containerWidth + 1;
+      setOverflowing(shouldScroll);
+
+      const nextKey = `${shouldScroll}:${textWidth}:${containerWidth}`;
+      if (nextKey === animationKey) return;
+      animationKey = nextKey;
+      stopAnimation();
+
+      if (!shouldScroll) return;
+
+      const rootFontSize = Number.parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
+      const distance = textWidth + rootFontSize * 3;
+      const holdDuration = 2_200;
+      const travelDuration = distance / 32 * 1_000;
+      const totalDuration = holdDuration * 2 + travelDuration;
+      const travelStartsAt = holdDuration / totalDuration;
+      const travelEndsAt = (holdDuration + travelDuration) / totalDuration;
+
+      animationFrame = window.requestAnimationFrame(() => {
+        animationFrame = null;
+        animation = track.animate([
+          { transform: "translate3d(0, 0, 0)", offset: 0 },
+          { transform: "translate3d(0, 0, 0)", offset: travelStartsAt },
+          { transform: `translate3d(-${distance}px, 0, 0)`, offset: travelEndsAt },
+          { transform: `translate3d(-${distance}px, 0, 0)`, offset: 1 }
+        ], {
+          duration: totalDuration,
+          easing: "linear",
+          iterations: Infinity
+        });
+      });
+    };
+
+    const observer = new ResizeObserver(update);
+    observer.observe(container);
+    observer.observe(copy);
+    mobile.addEventListener("change", update);
+    window.addEventListener("resize", update);
+    update();
+
+    return () => {
+      stopAnimation();
+      observer.disconnect();
+      mobile.removeEventListener("change", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [children]);
+
+  return (
+    <Tag ref={containerRef} className={`${className} auto-scroll-text ${overflowing ? "overflowing" : ""}`}>
+      <span ref={trackRef} className="auto-scroll-track">
+        <span className="auto-scroll-segment">
+          <span ref={copyRef} className="auto-scroll-copy">{children}</span>
+        </span>
+        {overflowing && (
+          <span className="auto-scroll-segment" aria-hidden="true">
+            <span className="auto-scroll-copy">{children}</span>
+          </span>
+        )}
+      </span>
+    </Tag>
+  );
+}
+
 function TrackCopy({ data, phase = "current" }: { data: NowPlayingData; phase?: TrackPhase }): React.JSX.Element | null {
   const track = data.track;
   if (!track) return null;
 
   return (
     <div className={`song-copy track-layer ${phase} transition-text`} aria-hidden={phase === "outgoing" || undefined}>
-      <h1 className="title">{track.name}</h1>
-      <h2 className="artist">{track.artist}</h2>
+      <AutoScrollText level="h1" className="title">{track.name}</AutoScrollText>
+      <AutoScrollText level="h2" className="artist">{track.artist}</AutoScrollText>
     </div>
   );
 }
@@ -187,6 +293,8 @@ export default function App(): React.JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpVisible, setHelpVisible] = useState(true);
   const [helpHovered, setHelpHovered] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuVisible, setMobileMenuVisible] = useState(true);
   const [cursorHidden, setCursorHidden] = useState(false);
   const coordinates = useMemo(
     () => customWeatherCoordinates(preferences),
@@ -216,10 +324,34 @@ export default function App(): React.JSX.Element {
     savePreferences(next);
   }
 
+  function openSettings(): void {
+    setMobileMenuOpen(false);
+    setSettingsOpen(true);
+  }
+
   useEffect(() => {
     const initialFade = window.setTimeout(() => setHelpVisible(false), 3_600);
     return () => window.clearTimeout(initialFade);
   }, []);
+
+  useEffect(() => {
+    let idleTimeout: number | undefined;
+
+    const showMobileMenu = () => {
+      setMobileMenuVisible(true);
+      if (idleTimeout !== undefined) window.clearTimeout(idleTimeout);
+      if (!mobileMenuOpen) {
+        idleTimeout = window.setTimeout(() => setMobileMenuVisible(false), 3_600);
+      }
+    };
+
+    showMobileMenu();
+    window.addEventListener("pointerdown", showMobileMenu, { passive: true });
+    return () => {
+      if (idleTimeout !== undefined) window.clearTimeout(idleTimeout);
+      window.removeEventListener("pointerdown", showMobileMenu);
+    };
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     let timeout = window.setTimeout(() => setCursorHidden(true), 3_000);
@@ -245,7 +377,7 @@ export default function App(): React.JSX.Element {
 
       if (key === "s") {
         event.preventDefault();
-        if (!settingsOpen) setSettingsOpen(true);
+        if (!settingsOpen) openSettings();
         return;
       }
 
@@ -351,7 +483,7 @@ export default function App(): React.JSX.Element {
               <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={() => setHelpVisible(false)}>
                 <i className="fa-solid fa-question fa-fw" aria-hidden="true" /> [h]elp
               </button>
-              <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={() => setSettingsOpen(true)}>
+              <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={openSettings}>
                 <i className="fa-solid fa-sliders fa-fw" aria-hidden="true" /> [s] preferences
               </button>
             </nav>
@@ -380,6 +512,41 @@ export default function App(): React.JSX.Element {
           </div>
         </div>
       </main>
+      <div className={`mobile-menu-shell ${mobileMenuOpen ? "open" : ""} ${mobileMenuVisible ? "awake" : "idle"}`}>
+        <nav id="mobile-display-menu" className="mobile-menu-drawer code" aria-label="Display controls" aria-hidden={!mobileMenuOpen}>
+          <div className="mobile-menu-links">
+            <a href="https://github.com/xmdbro/listening" target="_blank" rel="noreferrer" tabIndex={mobileMenuOpen ? 0 : -1}>
+              source <i className="fa-brands fa-github" aria-hidden="true" />
+            </a>
+            {presentedData?.artistImageSourceUrl && (
+              <a href={presentedData.artistImageSourceUrl} target="_blank" rel="noreferrer" tabIndex={mobileMenuOpen ? 0 : -1}>
+                artist <i className="fa-brands fa-spotify" aria-hidden="true" />
+              </a>
+            )}
+          </div>
+          <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} aria-pressed={preferences.weather} onClick={() => toggle("weather")}>
+            [w] weather
+          </button>
+          <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} aria-pressed={preferences.time} onClick={() => toggle("time")}>
+            [t] time and date
+          </button>
+          <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} aria-pressed={preferences.extended} onClick={() => toggle("extended")}>
+            [e] extended info
+          </button>
+          <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} onClick={openSettings}>
+            [s] preferences
+          </button>
+        </nav>
+        <button
+          type="button"
+          className="mobile-menu-toggle code"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-display-menu"
+          onClick={() => setMobileMenuOpen((open) => !open)}
+        >
+          [ {mobileMenuOpen ? "close" : "menu"} ]
+        </button>
+      </div>
       {settingsOpen && (
         <SettingsPanel
           preferences={preferences}
