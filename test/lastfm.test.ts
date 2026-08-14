@@ -126,7 +126,7 @@ test("isolates account status caches and deduplicates requests per user", async 
   }
 });
 
-test("resolves custom usernames only when the deployment opts in", () => {
+test("protects a configured username unless custom users are enabled", () => {
   const request = new Request("https://example.com/api/now-playing?user=other-user");
   assert.throws(
     () => resolveLastFmUsername(request, { LASTFM_USERNAME: "default-user" }),
@@ -142,6 +142,14 @@ test("resolves custom usernames only when the deployment opts in", () => {
     new Request("https://example.com/api/now-playing"),
     { LASTFM_USERNAME: "default-user" }
   ), "default-user");
+  assert.equal(resolveLastFmUsername(
+    new Request("https://example.com/api/now-playing"),
+    { LASTFM_USERNAME: "   " }
+  ), undefined);
+  assert.equal(resolveLastFmUsername(
+    new Request("https://example.com/api/now-playing?user=chosen-user"),
+    { LASTFM_USERNAME: "" }
+  ), "chosen-user");
 });
 
 test("rejects duplicate or oversized username queries", () => {

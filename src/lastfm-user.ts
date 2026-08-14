@@ -44,7 +44,7 @@ export function resolveLastFmUsername(
 
   const isConfiguredUser = configuredUsername
     && requestedUsername.toLocaleLowerCase() === configuredUsername.toLocaleLowerCase();
-  const customUsersAllowed = /^(?:1|true|yes)$/iu.test(
+  const customUsersAllowed = !configuredUsername || /^(?:1|true|yes)$/iu.test(
     environment.ALLOW_CUSTOM_LASTFM_USERS?.trim() ?? ""
   );
   if (!isConfiguredUser && !customUsersAllowed) {

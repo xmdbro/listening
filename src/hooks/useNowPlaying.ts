@@ -11,7 +11,7 @@ export function useNowPlaying(username: string, refreshEvery = 7_000): NowPlayin
   const [state, setState] = useState<NowPlayingState>({
     data: null,
     error: null,
-    loading: true
+    loading: Boolean(username.trim())
   });
 
   useEffect(() => {
@@ -19,9 +19,13 @@ export function useNowPlaying(username: string, refreshEvery = 7_000): NowPlayin
     let pendingRefresh: Promise<void> | null = null;
     const controllers = new Set<AbortController>();
     const selectedUsername = username.trim();
-    const query = selectedUsername
-      ? `?${new URLSearchParams({ user: selectedUsername }).toString()}`
-      : "";
+
+    if (!selectedUsername) {
+      setState({ data: null, error: null, loading: false });
+      return;
+    }
+
+    const query = `?${new URLSearchParams({ user: selectedUsername }).toString()}`;
 
     setState({ data: null, error: null, loading: true });
 
