@@ -19,7 +19,7 @@ Listening follows the current or most recently scrobbled track from a selected L
 
 When Spotify credentials are available, Spotify supplies the album artwork and artist photo. The artist photo is used as the default fullscreen background, falling back to the album cover when necessary. Colors extracted from the cover are brightened and applied to the track and artist text.
 
-Time, weather, and extended listening information are visible by default. A fresh browser starts without a selected Last.fm account and prompts the visitor to enter one in Listening preferences, unless set in the .env. Display preferences are stored locally in the visitor's browser.
+Time, weather, and extended listening information are visible by default. A fresh browser has no saved account preference, so Listening uses `LASTFM_USERNAME` when it is configured and otherwise prompts the visitor to enter a username in Listening preferences. Display preferences are stored locally in the visitor's browser.
 
 ## Controls
 
@@ -81,7 +81,7 @@ OPENWEATHERMAP_API_KEY=replace-with-your-openweathermap-api-key
 
 ### Last.fm
 
-Track metadata and personal listening statistics come from the [Last.fm API](https://www.last.fm/api). Create a [Last.fm API account](https://www.last.fm/api/account/create) here.
+Track metadata and personal listening statistics come from the [Last.fm API](https://www.last.fm/api). Create a [Last.fm API account](https://www.last.fm/api/account/create) here. A username saved in Listening preferences takes precedence over `LASTFM_USERNAME`; leaving the preference empty uses the configured environment value.
 
 The Last.fm shared secret and callback URL are not used. Listening checks for playback changes every seven seconds while the tab is visible and refreshes immediately when the tab regains focus. Playback responses are cached per account for five seconds. Personal play counts remain account-specific, while Spotify artwork and embedded card images are shared when accounts resolve to the same song or image.
 
