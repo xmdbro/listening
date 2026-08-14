@@ -92,6 +92,21 @@ test("encodes a selected username as a Last.fm query parameter", async () => {
   assert.equal(result.username, "name&method=evil");
 });
 
+test("distinguishes a missing username from other missing configuration", async () => {
+  await assert.rejects(
+    fetchNowPlaying({ apiKey: "key", username: undefined }),
+    (error: unknown) => error instanceof Error
+      && "code" in error
+      && error.code === "MISSING_LASTFM_USERNAME"
+  );
+  await assert.rejects(
+    fetchNowPlaying({ apiKey: undefined, username: "user" }),
+    (error: unknown) => error instanceof Error
+      && "code" in error
+      && error.code === "MISSING_CONFIGURATION"
+  );
+});
+
 test("isolates account status caches and deduplicates requests per user", async () => {
   const originalFetch = globalThis.fetch;
   const originalApiKey = process.env.LASTFM_API_KEY;

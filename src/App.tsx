@@ -289,7 +289,6 @@ function MusicDisplay({
 export default function App(): React.JSX.Element {
   const [preferences, setPreferences] = useState(loadPreferences);
   const { data, error, loading } = useNowPlaying(preferences.lastFmUsername);
-  const hasLastFmUsername = Boolean(preferences.lastFmUsername.trim());
   const transition = useTrackTransition(data);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpVisible, setHelpVisible] = useState(true);
@@ -302,7 +301,7 @@ export default function App(): React.JSX.Element {
     [preferences.weatherLatitude, preferences.weatherLongitude]
   );
   const weather = useWeather(preferences.weather, coordinates);
-  const presentedData = hasLastFmUsername ? transition.current : null;
+  const presentedData = transition.current;
   const track = presentedData?.track ?? null;
   const colors = useArtworkColors(track?.imageUrl);
   const controlsVisible = helpVisible || helpHovered;
@@ -491,13 +490,8 @@ export default function App(): React.JSX.Element {
           </div>
 
           <div className="corner right music" aria-live="polite">
-            {!hasLastFmUsername && (
-              <div className="idle-message">
-                <h1>Please enter a Last.fm username in Listening preferences [s].</h1>
-              </div>
-            )}
-            {hasLastFmUsername && loading && <p className="loading-message">Checking Last.fm...</p>}
-            {hasLastFmUsername && error && <p className="error-message">{error}</p>}
+            {loading && <p className="loading-message">Checking Last.fm...</p>}
+            {error && <p className="error-message">{error}</p>}
 
             {presentedData?.track && (
               <MusicDisplay
@@ -510,7 +504,7 @@ export default function App(): React.JSX.Element {
               />
             )}
 
-            {hasLastFmUsername && !loading && !error && !track && (
+            {!loading && !error && !track && (
               <div className="idle-message">
                 <h1>Nothing in the air...</h1>
               </div>

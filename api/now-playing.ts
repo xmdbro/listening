@@ -5,6 +5,7 @@ function errorStatus(code: unknown): number {
   if (code === "INVALID_USERNAME") return 400;
   if (code === "CUSTOM_USERS_DISABLED") return 403;
   if (code === "LASTFM_USER_NOT_FOUND") return 404;
+  if (code === "MISSING_LASTFM_USERNAME") return 503;
   if (code === "MISSING_CONFIGURATION") return 503;
   return 502;
 }
@@ -28,6 +29,8 @@ export async function createNowPlayingResponse(request?: Request): Promise<Respo
         ? "Custom Last.fm users are disabled on this deployment."
         : status === 404
           ? "That Last.fm user could not be found."
+          : code === "MISSING_LASTFM_USERNAME"
+            ? "Please enter a Last.fm username in Listening preferences [s]."
           : status === 503
             ? "Listening is not configured yet."
             : "Listening data is temporarily unavailable.";

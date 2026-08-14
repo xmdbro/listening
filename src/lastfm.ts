@@ -246,11 +246,18 @@ export async function fetchNowPlaying({
   username?: string;
   fetcher?: typeof fetch;
 }): Promise<NowPlayingData> {
-  if (!apiKey || !username) {
+  if (!apiKey) {
     const error = new Error(
-      "Set LASTFM_API_KEY and LASTFM_USERNAME before requesting listening data."
+      "Set LASTFM_API_KEY before requesting listening data."
     ) as Error & { code: string };
     error.code = "MISSING_CONFIGURATION";
+    throw error;
+  }
+  if (!username) {
+    const error = new Error(
+      "Enter a Last.fm username in Listening preferences or set LASTFM_USERNAME."
+    ) as Error & { code: string };
+    error.code = "MISSING_LASTFM_USERNAME";
     throw error;
   }
 

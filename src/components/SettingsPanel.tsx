@@ -107,13 +107,13 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
             {error && <p className="settings-error" role="alert">{error}</p>}
             <fieldset>
               <legend><span>Last.fm account</span></legend>
-              <p className="setting-description">Enter the Last.fm account you want to follow.</p>
+              <p className="setting-description">Enter the Last.fm account you want to follow, or leave blank to use the server default.</p>
               <div className="setting-text-input">
                 <input
                   type="text"
                   maxLength={MAX_LASTFM_USERNAME_LENGTH}
                   aria-label="Last.fm username"
-                  placeholder="Last.fm username"
+                  placeholder="Server default"
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}

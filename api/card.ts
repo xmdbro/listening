@@ -42,6 +42,7 @@ export async function createCardResponse(request?: Request): Promise<Response> {
     const status = code === "INVALID_USERNAME" ? 400
       : code === "CUSTOM_USERS_DISABLED" ? 403
       : code === "LASTFM_USER_NOT_FOUND" ? 404
+      : code === "MISSING_LASTFM_USERNAME" ? 503
       : code === "MISSING_CONFIGURATION" ? 503
       : 502;
 
