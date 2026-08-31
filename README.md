@@ -6,8 +6,8 @@ A self-hosted fullscreen Last.fm now-playing display with artwork, local weather
   <img src="./.github/docs/demo.gif" alt="Listening demo" width="90%">
   <br>
   <br>
-  <a href="https://listening-xmdb.vercel.app/">
-    <img src="https://listening-xmdb.vercel.app/now.svg?name=Lance" alt="Lance's now playing status">
+  <a href="https://listening.lancechiu.com/">
+    <img src="https://listening.lancechiu.com/now.svg?name=Lance" alt="Lance's now playing status">
   </a>
   <br>
   <sub><i>(this is live)</i></sub>
