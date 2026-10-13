@@ -5,13 +5,17 @@ interface NowPlayingState {
   data: NowPlayingData | null;
   error: string | null;
   loading: boolean;
+  requiresUsername: boolean;
+  serverDefaultUsername: string | null;
 }
 
 export function useNowPlaying(username: string, refreshEvery = 7_000): NowPlayingState {
   const [state, setState] = useState<NowPlayingState>({
     data: null,
     error: null,
-    loading: true
+    loading: true,
+    requiresUsername: false,
+    serverDefaultUsername: null
   });
 
   useEffect(() => {
@@ -24,7 +28,7 @@ export function useNowPlaying(username: string, refreshEvery = 7_000): NowPlayin
       ? `?${new URLSearchParams({ user: selectedUsername }).toString()}`
       : "";
 
-    setState({ data: null, error: null, loading: true });
+    setState((current) => ({ ...current, data: null, error: null, loading: true, requiresUsername: false }));
 
     async function refresh(): Promise<void> {
       const controller = new AbortController();
@@ -37,13 +41,23 @@ export function useNowPlaying(username: string, refreshEvery = 7_000): NowPlayin
         const payload = await response.json() as NowPlayingData & {
           error?: string;
           detail?: string;
+          requiresUsername?: boolean;
+          serverDefaultUsername?: string | null;
         };
+        const serverDefaultUsername = payload.serverDefaultUsername?.trim() || null;
 
         if (!response.ok) {
-          throw new Error(payload.detail || payload.error || "Listening data is unavailable.");
+          if (active) setState((current) => ({
+            ...current,
+            error: payload.detail || payload.error || "Listening data is unavailable.",
+            loading: false,
+            requiresUsername: payload.requiresUsername === true,
+            serverDefaultUsername
+          }));
+          return;
         }
 
-        if (active) setState({ data: payload, error: null, loading: false });
+        if (active) setState({ data: payload, error: null, loading: false, requiresUsername: false, serverDefaultUsername });
       } catch (error) {
         if (active) {
           setState((current) => ({

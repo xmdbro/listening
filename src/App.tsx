@@ -6,7 +6,9 @@ import { useTrackTransition } from "./hooks/useTrackTransition";
 import { useWeather } from "./hooks/useWeather";
 import {
   customWeatherCoordinates,
+  hasVisited,
   loadPreferences,
+  markVisited,
   savePreferences,
   type BackgroundType,
   type Feature,
@@ -288,9 +290,14 @@ function MusicDisplay({
 
 export default function App(): React.JSX.Element {
   const [preferences, setPreferences] = useState(loadPreferences);
-  const { data, error, loading } = useNowPlaying(preferences.lastFmUsername);
+  const { data, error, loading, requiresUsername, serverDefaultUsername } = useNowPlaying(preferences.lastFmUsername);
   const transition = useTrackTransition(data);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [firstVisit] = useState(() => !hasVisited());
+  const [settingsOpen, setSettingsOpen] = useState(firstVisit);
+  const [settingsNotice, setSettingsNotice] = useState<string | null>(firstVisit
+    ? "Welcome! Choose a Last.fm account, or leave it blank to use the server default."
+    : null);
+  const promptedForUsername = useRef(false);
   const [helpVisible, setHelpVisible] = useState(true);
   const [helpHovered, setHelpHovered] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -328,6 +335,20 @@ export default function App(): React.JSX.Element {
     setMobileMenuOpen(false);
     setSettingsOpen(true);
   }
+
+  function closeSettings(): void {
+    markVisited();
+    setSettingsOpen(false);
+    setSettingsNotice(null);
+  }
+
+  useEffect(() => {
+    if (!requiresUsername || preferences.lastFmUsername.trim() || promptedForUsername.current) return;
+    promptedForUsername.current = true;
+    setMobileMenuOpen(false);
+    setSettingsNotice("No server default is set. Enter a Last.fm username to start listening.");
+    setSettingsOpen(true);
+  }, [requiresUsername, preferences.lastFmUsername]);
 
   useEffect(() => {
     const initialFade = window.setTimeout(() => setHelpVisible(false), 3_600);
@@ -550,7 +571,13 @@ export default function App(): React.JSX.Element {
       {settingsOpen && (
         <SettingsPanel
           preferences={preferences}
-          onCancel={() => setSettingsOpen(false)}
+          serverDefaultUsername={serverDefaultUsername}
+          notice={settingsNotice}
+          onDismissNotice={() => {
+            markVisited();
+            setSettingsNotice(null);
+          }}
+          onCancel={closeSettings}
           onSave={applyPreferences}
         />
       )}

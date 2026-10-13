@@ -34,6 +34,25 @@ export const defaultPreferences: Preferences = {
 
 const SETTINGS_KEY = "listening:settings:v1";
 const LEGACY_FEATURES_KEY = "listening:features";
+const WELCOME_SEEN_KEY = "listening:welcome-seen";
+
+export function hasVisited(storage: Pick<Storage, "getItem"> = localStorage): boolean {
+  try {
+    return Boolean(storage.getItem(WELCOME_SEEN_KEY)
+      || storage.getItem(SETTINGS_KEY)
+      || storage.getItem(LEGACY_FEATURES_KEY));
+  } catch {
+    return false;
+  }
+}
+
+export function markVisited(storage: Pick<Storage, "setItem"> = localStorage): void {
+  try {
+    storage.setItem(WELCOME_SEEN_KEY, "true");
+  } catch {
+    // The welcome panel can still be dismissed when storage is unavailable.
+  }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

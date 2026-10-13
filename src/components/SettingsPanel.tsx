@@ -5,6 +5,9 @@ import { MAX_LASTFM_USERNAME_LENGTH, validateLastFmUsername } from "../lastfm-us
 
 interface SettingsPanelProps {
   preferences: Preferences;
+  serverDefaultUsername?: string | null;
+  notice?: string | null;
+  onDismissNotice?: () => void;
   onCancel: () => void;
   onSave: (preferences: Preferences) => void;
 }
@@ -15,10 +18,11 @@ const backgroundOptions: Array<{ value: BackgroundType; label: string; detail: s
   { value: "none", label: "None", detail: "Use a solid black background." }
 ];
 
-export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelProps): React.JSX.Element {
+export function SettingsPanel({ preferences, serverDefaultUsername, notice, onDismissNotice, onCancel, onSave }: SettingsPanelProps): React.JSX.Element {
   const [draft, setDraft] = useState(preferences);
   const [error, setError] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
+  const [noticeClosing, setNoticeClosing] = useState(false);
   const closingRef = useRef(false);
   const closeTimeout = useRef<number | null>(null);
   const onCancelRef = useRef(onCancel);
@@ -93,6 +97,20 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
         if (event.target === event.currentTarget) beginClose();
       }}
     >
+      {notice && (
+        <div
+          className={`settings-notice ${noticeClosing ? "closing" : ""}`}
+          role="alert"
+          onAnimationEnd={(event) => {
+            if (event.target !== event.currentTarget || event.animationName !== "settings-notice-out") return;
+            setNoticeClosing(false);
+            onDismissNotice?.();
+          }}
+        >
+          <p>{notice}</p>
+          <button type="button" aria-label="Dismiss notice" disabled={noticeClosing} onClick={() => setNoticeClosing(true)}>×</button>
+        </div>
+      )}
       <section className={`settings-panel ${closing ? "closing" : ""}`} role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <form onSubmit={submit}>
           <header className="settings-header">
@@ -111,9 +129,10 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
               <div className="setting-text-input">
                 <input
                   type="text"
+                  autoFocus={Boolean(notice)}
                   maxLength={MAX_LASTFM_USERNAME_LENGTH}
                   aria-label="Last.fm username"
-                  placeholder="Server default"
+                  placeholder={serverDefaultUsername ? `${serverDefaultUsername} (Server default)` : "Server default"}
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
@@ -125,7 +144,7 @@ export function SettingsPanel({ preferences, onCancel, onSave }: SettingsPanelPr
 
             <fieldset>
               <legend><span>Display name</span></legend>
-              <p className="setting-description">Optional label shown instead of the Last.fm username.</p>
+              <p className="setting-description">Label shown instead of the Last.fm username (Optional)</p>
               <div className="setting-text-input">
                 <input
                   type="text"

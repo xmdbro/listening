@@ -3,11 +3,28 @@ import test from "node:test";
 import {
   customWeatherCoordinates,
   defaultPreferences,
+  hasVisited,
   loadPreferences,
+  markVisited,
   validateWeatherCoordinates,
   type Preferences
 } from "../src/preferences";
 import { validateLastFmUsername } from "../src/lastfm-user";
+
+test("remembers welcome dismissal and recognizes existing visitors", () => {
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); }
+  };
+  assert.equal(hasVisited(storage), false);
+  markVisited(storage);
+  assert.equal(hasVisited(storage), true);
+  assert.equal(loadPreferences(storage).lastFmUsername, "");
+
+  assert.equal(hasVisited({ getItem: (key) => key === "listening:settings:v1" ? "{}" : null }), true);
+  assert.equal(hasVisited({ getItem: (key) => key === "listening:features" ? "{}" : null }), true);
+});
 
 test("loads saved settings while preserving defaults for missing values", () => {
   const preferences = loadPreferences({

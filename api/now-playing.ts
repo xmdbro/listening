@@ -11,11 +11,14 @@ function errorStatus(code: unknown): number {
 }
 
 export async function createNowPlayingResponse(request?: Request): Promise<Response> {
+  const serverDefaultUsername = process.env.LASTFM_USERNAME?.trim() || null;
+  let requiresUsername = false;
   try {
     const username = resolveLastFmUsername(request);
+    requiresUsername = !username;
     const data = await getNowPlayingFromEnvironment(username);
 
-    return Response.json(data, {
+    return Response.json({ ...data, serverDefaultUsername }, {
       headers: {
         "Cache-Control": "public, max-age=0, s-maxage=5, stale-while-revalidate=15"
       }
@@ -38,6 +41,8 @@ export async function createNowPlayingResponse(request?: Request): Promise<Respo
     return Response.json(
       {
         error: publicMessage,
+        requiresUsername,
+        serverDefaultUsername,
         detail: (status === 400 || process.env.NODE_ENV === "development") && error instanceof Error
           ? error.message
           : undefined
