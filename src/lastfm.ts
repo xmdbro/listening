@@ -38,12 +38,13 @@ interface LastFmPayload {
 interface LastFmInfoPayload {
   error?: unknown;
   artist?: { stats?: { userplaycount?: unknown } };
-  track?: { userplaycount?: unknown };
+  track?: { userplaycount?: unknown; userloved?: unknown };
 }
 
 interface DetailedScrobbles {
   artistScrobbles: number | null;
   trackScrobbles: number | null;
+  trackLoved: boolean | null;
 }
 
 interface DetailedScrobblesCacheEntry extends DetailedScrobbles {
@@ -115,6 +116,7 @@ export function normalizeRecentTracks(
       scrobbles,
       artistScrobbles: null,
       trackScrobbles: null,
+      trackLoved: null,
       artistImageUrl: "",
       artistImageSourceUrl: "",
       track: null,
@@ -135,6 +137,7 @@ export function normalizeRecentTracks(
     scrobbles,
     artistScrobbles: null,
     trackScrobbles: null,
+    trackLoved: null,
     artistImageUrl: "",
     artistImageSourceUrl: "",
     track: {
@@ -200,7 +203,12 @@ export async function fetchDetailedScrobbles({
 
   return {
     artistScrobbles: numberOrNull(artistPayload?.artist?.stats?.userplaycount),
-    trackScrobbles: numberOrNull(trackPayload?.track?.userplaycount)
+    trackScrobbles: numberOrNull(trackPayload?.track?.userplaycount),
+    trackLoved: trackPayload?.track?.userloved === "1" || trackPayload?.track?.userloved === 1
+      ? true
+      : trackPayload?.track?.userloved === "0" || trackPayload?.track?.userloved === 0
+        ? false
+        : null
   };
 }
 
@@ -221,9 +229,11 @@ async function getDetailedScrobbles(
     .then((fresh) => {
       const result = {
         artistScrobbles: fresh.artistScrobbles ?? cached?.artistScrobbles ?? null,
-        trackScrobbles: fresh.trackScrobbles ?? cached?.trackScrobbles ?? null
+        trackScrobbles: fresh.trackScrobbles ?? cached?.trackScrobbles ?? null,
+        trackLoved: fresh.trackLoved
       };
-      const complete = result.artistScrobbles !== null && result.trackScrobbles !== null;
+      const complete = result.artistScrobbles !== null
+        && result.trackScrobbles !== null && result.trackLoved !== null;
       writeBoundedCache(detailedScrobblesCache, key, {
         ...result,
         expiresAt: Date.now() + (

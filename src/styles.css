@@ -309,6 +309,10 @@ h2 {
   font-size: 0.5em;
 }
 
+.track-loved {
+  margin-left: 0.4em;
+}
+
 .song-link {
   display: inline-block;
   opacity: 1;

@@ -14,6 +14,7 @@ export interface NowPlayingData {
   scrobbles: number | null;
   artistScrobbles: number | null;
   trackScrobbles: number | null;
+  trackLoved: boolean | null;
   artistImageUrl: string;
   artistImageSourceUrl: string;
   track: Track | null;

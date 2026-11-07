@@ -57,7 +57,7 @@ test("loads personal artist and track scrobble counts", async () => {
 
     return Response.json(url.searchParams.get("method") === "artist.getInfo"
       ? { artist: { stats: { userplaycount: "212" } } }
-      : { track: { userplaycount: "156" } });
+      : { track: { userplaycount: "156", userloved: "1" } });
   }) as typeof fetch;
 
   const result = await fetchDetailedScrobbles({
@@ -70,7 +70,8 @@ test("loads personal artist and track scrobble counts", async () => {
 
   assert.deepEqual(result, {
     artistScrobbles: 212,
-    trackScrobbles: 156
+    trackScrobbles: 156,
+    trackLoved: true
   });
   assert.deepEqual(requestedMethods.sort(), ["artist.getInfo", "track.getInfo"]);
 });
@@ -202,7 +203,7 @@ test("keeps an available detail count when the other Last.fm lookup fails", asyn
     fetcher
   });
 
-  assert.deepEqual(result, { artistScrobbles: 108, trackScrobbles: null });
+  assert.deepEqual(result, { artistScrobbles: 108, trackScrobbles: null, trackLoved: null });
 });
 
 test("marks the most recent scrobble as not currently playing", () => {
@@ -230,6 +231,7 @@ test("escapes user-controlled metadata in the SVG card", () => {
     scrobbles: 1,
     artistScrobbles: null,
     trackScrobbles: null,
+    trackLoved: null,
     artistImageUrl: "",
     artistImageSourceUrl: "",
     updatedAt: new Date().toISOString(),

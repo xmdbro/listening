@@ -100,7 +100,14 @@ function ExtendedTrackInfo({
             )}
             {data.artistScrobbles !== null && data.trackScrobbles !== null && " • "}
             {data.trackScrobbles !== null && (
-              <><b>{formatScrobbles(data.trackScrobbles)}</b> this track</>
+              <>
+                <b>{formatScrobbles(data.trackScrobbles)}</b> this track
+                {data.trackLoved === true && (
+                  <span className="track-loved" role="img" aria-label="Loved on Last.fm" title="Loved on Last.fm">
+                    ♥
+                  </span>
+                )}
+              </>
             )}
           </p>
         )}

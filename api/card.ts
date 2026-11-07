@@ -53,6 +53,7 @@ export async function createCardResponse(request?: Request): Promise<Response> {
         scrobbles: null,
         artistScrobbles: null,
         trackScrobbles: null,
+        trackLoved: null,
         artistImageUrl: "",
         artistImageSourceUrl: "",
         track: null,
