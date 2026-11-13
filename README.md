@@ -46,6 +46,10 @@ Available preferences include:
 - Custom longitude and latitude for the weather.
 - 24-hour time, weekday, and seconds toggle display.
 
+## Share track cards
+
+Open **Share track** and customize the card. **Share image** copies a live PNG link with your chosen format, background, colors, and visible fields. Anyone with the link can see the selected account's current or most recent track and the details you chose to show. **Download PNG** saves the track shown in the preview.
+
 ## Endpoints
 
 Listening exposes several routes for websites, profile READMEs, and other integrations. They are intentionally not linked from the fullscreen display.
@@ -59,6 +63,7 @@ Listening exposes several routes for websites, profile READMEs, and other integr
 | `/now.svg` | Short alias for the SVG card |
 | `/now.svg?name=Lance` | SVG card with a public display-name override |
 | `/now.svg?user=xmdb&name=Lance` | SVG card with account and display-name overrides |
+| `/share.png?user=xmdb&format=story&background=gradient` | Live PNG card with share preferences in the URL |
 
 The `user` query parameter selects the Last.fm account. When `LASTFM_USERNAME` is set, selecting a different account requires `ALLOW_CUSTOM_LASTFM_USERS=true`. If `user` is omitted or blank, the endpoint uses `LASTFM_USERNAME` when one is configured; otherwise it returns a prompt response instead of attempting a Last.fm request. The `name` parameter only changes the label rendered in a card. URL-encode names containing spaces.
 

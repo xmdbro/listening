@@ -11,8 +11,11 @@ function brightenPaletteColor(color: Color): string {
 }
 
 export function paletteFromImage(image: HTMLImageElement): readonly [string, string] {
-  const colors = (getPaletteSync(image, { colorCount: 3 }) ?? [])
-    .map(brightenPaletteColor);
+  return artworkTextColors(getPaletteSync(image, { colorCount: 3 }) ?? []);
+}
+
+export function artworkTextColors(palette: readonly Color[]): readonly [string, string] {
+  const colors = palette.map(brightenPaletteColor);
 
   return [
     colors[0] ?? fallbackArtworkColors[0],

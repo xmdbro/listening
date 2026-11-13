@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { backgroundPresets, cardColors, drawShareCard, loadShareAlbumScrobbles, loadShareArtwork, shareStats, SHARE_FORMATS, type ShareCardResources, type ShareTrack } from "../share-card";
+import { backgroundPresets, cardColors, drawSharePreview, loadShareAlbumScrobbles, loadShareArtwork, shareStats, SHARE_FORMATS, type ShareCardResources, type ShareTrack } from "../share-card";
+import { shareImageUrl } from "../share-link";
 import {
   defaultSharePreferences, loadSharePreferences, saveSharePreferences,
   shareBackgrounds, shareColors, shareFormats, shareVisibility, type SharePreferences
@@ -34,13 +35,14 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
   const [resources, setResources] = useState<ShareCardResources | null>(null);
   const [exported, setExported] = useState<{ preferences: SharePreferences; file: File } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [sharing, setSharing] = useState(false);
+  const [copyResult, setCopyResult] = useState<{ url: string; copied: boolean } | null>(null);
   const { format, background, backgroundColor, blur, color, show } = preferences;
   const presets = resources?.backgroundPresets ?? [];
   const photoBackground = background === "artist" || background === "album";
   const dimensions = SHARE_FORMATS[format];
   const file = exported?.preferences === preferences ? exported.file : null;
-  const canShare = file && typeof navigator.share === "function" && navigator.canShare?.({ files: [file] });
+  const imageUrl = shareImageUrl(window.location.origin, snapshot, preferences);
+  const currentCopy = copyResult?.url === imageUrl ? copyResult : null;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -79,7 +81,7 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
 
     let active = true;
     try {
-      drawShareCard(canvas, snapshot, preferences, resources);
+      drawSharePreview(canvas, snapshot, preferences, resources);
       canvas.toBlob((blob) => {
         if (!active) return;
         if (!blob) {
@@ -102,6 +104,7 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
     if (next === preferences) return;
     setExported(null);
     setError(null);
+    setCopyResult(null);
     setPreferences(next);
     saveSharePreferences(next);
   }
@@ -124,19 +127,12 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
     window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
   }
 
-  async function share(): Promise<void> {
-    if (!file || sharing) return;
-
-    setSharing(true);
-    setError(null);
+  async function copyImageLink(): Promise<void> {
     try {
-      await navigator.share({ files: [file] });
-    } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) {
-        setError("Couldn’t open sharing. You can still download the PNG.");
-      }
-    } finally {
-      setSharing(false);
+      await navigator.clipboard.writeText(imageUrl);
+      setCopyResult({ url: imageUrl, copied: true });
+    } catch {
+      setCopyResult({ url: imageUrl, copied: false });
     }
   }
 
@@ -222,9 +218,16 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
           </div>
         </div>
         <footer className="share-actions">
+          <p className="share-copy-status" role="status">{currentCopy?.copied ? "Link copied." : ""}</p>
           <button type="button" className="primary share-download" onClick={download} disabled={!file}>Download PNG</button>
-          {canShare && <button type="button" onClick={() => void share()} disabled={sharing}>Share image</button>}
+          <button type="button" onClick={() => void copyImageLink()}>Share image</button>
         </footer>
+        {currentCopy && !currentCopy.copied && (
+          <label className="share-link-feedback setting-text-input">
+            Copy the live image link
+            <input type="url" readOnly value={imageUrl} onFocus={(event) => event.currentTarget.select()} />
+          </label>
+        )}
         {error && <p className="share-error" role="alert">{error}</p>}
       </div>
     </dialog>

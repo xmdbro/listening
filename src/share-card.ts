@@ -1,8 +1,8 @@
 import chroma from "chroma-js";
-import { getPaletteSync } from "colorthief";
-import { fallbackArtworkColors, paletteFromImage } from "./hooks/useArtworkColors";
-import { shareVisibility, type SharePreferences } from "./share-preferences";
-import type { Track } from "./types";
+import { getPaletteSync, type Color } from "colorthief";
+import { fallbackArtworkColors, paletteFromImage } from "./hooks/useArtworkColors.js";
+import { shareVisibility, type SharePreferences } from "./share-preferences.js";
+import type { Track } from "./types.js";
 
 export interface ShareTrack {
   track: Track;
@@ -14,9 +14,20 @@ export interface ShareTrack {
   trackScrobbles: number | null;
 }
 
-export interface ShareCardResources {
-  cover: HTMLImageElement | null;
-  artistPhoto: HTMLImageElement | null;
+type CardImage = Pick<HTMLImageElement, "naturalWidth" | "naturalHeight">;
+
+type CardContext<Image extends CardImage> = Pick<CanvasRenderingContext2D,
+  "fillStyle" | "strokeStyle" | "lineWidth" | "font" | "textAlign" | "textBaseline" |
+  "shadowColor" | "shadowBlur" | "shadowOffsetY" | "filter" | "save" | "restore" | "beginPath" |
+  "rect" | "clip" | "fill" | "stroke" | "fillRect" | "strokeRect" | "moveTo" | "lineTo" |
+  "createLinearGradient" | "createRadialGradient" | "measureText" | "fillText"
+> & {
+  drawImage(image: NoInfer<Image>, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number): void;
+};
+
+export interface ShareCardResources<Image extends CardImage = HTMLImageElement> {
+  cover: Image | null;
+  artistPhoto: Image | null;
   albumScrobbles: number | null;
   artworkColors: readonly [string, string];
   backgroundPresets: readonly string[];
@@ -93,18 +104,18 @@ const darkBackground = "#171820";
 const fallbackBackgroundPresets = ["#536dce", "#9e387a", "#258479"];
 
 export function backgroundPresets(cover: HTMLImageElement | null): readonly string[] {
-  let colors: string[] = [];
   try {
-    if (cover) {
-      const palette = getPaletteSync(cover, { colorCount: 4, ignoreWhite: false }) ?? [];
-      colors = [...palette]
-        .sort((left, right) => right.population - left.population)
-        .map((color) => color.hex())
-        .filter((color) => color !== "#000000");
-    }
+    return presetsFromPalette(cover ? getPaletteSync(cover, { colorCount: 4, ignoreWhite: false }) : null);
   } catch {
-    // A cover that cannot be sampled still gets the default swatches.
+    return fallbackBackgroundPresets;
   }
+}
+
+export function presetsFromPalette(palette: readonly Color[] | null): readonly string[] {
+  const colors = [...(palette ?? [])]
+    .sort((left, right) => right.population - left.population)
+    .map((color) => color.hex())
+    .filter((color) => color !== "#000000");
   return [...new Set([...colors, ...fallbackBackgroundPresets])].slice(0, 3);
 }
 
@@ -113,7 +124,7 @@ function readableColor(foreground: string, background: string): string {
   return chroma.contrast("#ffffff", background) >= 4.5 ? "#ffffff" : "#000000";
 }
 
-function drawCroppedImage(context: CanvasRenderingContext2D, image: HTMLImageElement, x: number, y: number, width: number, height: number): void {
+function drawCroppedImage<Image extends CardImage>(context: CardContext<Image>, image: Image, x: number, y: number, width: number, height: number): void {
   const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
   const sourceWidth = width / scale;
   const sourceHeight = height / scale;
@@ -123,31 +134,44 @@ function drawCroppedImage(context: CanvasRenderingContext2D, image: HTMLImageEle
   );
 }
 
-function drawBackgroundPhoto(context: CanvasRenderingContext2D, photo: HTMLImageElement, width: number, height: number, blur: boolean): void {
+function drawBackgroundPhoto<Image extends CardImage>(context: CardContext<Image>, photo: Image, width: number, height: number, blur: boolean, blurFallback?: () => void): void {
   if (!blur) {
     drawCroppedImage(context, photo, 0, 0, width, height);
     return;
   }
 
-  if (typeof context.filter === "string") {
-    const inset = 72;
-    context.save();
-    context.filter = "blur(24px)";
-    drawCroppedImage(context, photo, -inset, -inset, width + 2 * inset, height + 2 * inset);
-    context.restore();
+  if (typeof context.filter !== "string" && blurFallback) {
+    blurFallback();
     return;
   }
 
-  const sample = document.createElement("canvas");
-  sample.width = 24;
-  sample.height = Math.round(24 * height / width);
-  const sampleContext = sample.getContext("2d");
-  if (!sampleContext) return;
-  drawCroppedImage(sampleContext, photo, 0, 0, sample.width, sample.height);
-  context.drawImage(sample, 0, 0, width, height);
+  const inset = 72;
+  context.save();
+  context.filter = "blur(24px)";
+  drawCroppedImage(context, photo, -inset, -inset, width + 2 * inset, height + 2 * inset);
+  context.restore();
 }
 
-function drawCover(context: CanvasRenderingContext2D, image: HTMLImageElement | null, x: number, y: number, size: number): void {
+export function drawSharePreview(canvas: HTMLCanvasElement, snapshot: ShareTrack, preferences: SharePreferences, resources: ShareCardResources): void {
+  const { width, height } = SHARE_FORMATS[preferences.format];
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("The card preview is unavailable in this browser.");
+
+  drawShareCard(context, snapshot, preferences, resources, (photo) => {
+    // Browsers without canvas filters can soften the image by downsampling.
+    const sample = document.createElement("canvas");
+    sample.width = 24;
+    sample.height = Math.round(24 * height / width);
+    const sampleContext = sample.getContext("2d");
+    if (!sampleContext) return;
+    drawCroppedImage(sampleContext, photo, 0, 0, sample.width, sample.height);
+    context.drawImage(sample, 0, 0, width, height);
+  });
+}
+
+function drawCover<Image extends CardImage>(context: CardContext<Image>, image: Image | null, x: number, y: number, size: number): void {
   context.save();
   context.beginPath();
   context.rect(x, y, size, size);
@@ -177,7 +201,7 @@ function drawCover(context: CanvasRenderingContext2D, image: HTMLImageElement | 
 
 const graphemes = typeof Intl.Segmenter === "function" ? new Intl.Segmenter(undefined, { granularity: "grapheme" }) : null;
 
-function fitText(context: CanvasRenderingContext2D, text: string, width: number): string {
+function fitText(context: Pick<CanvasRenderingContext2D, "measureText">, text: string, width: number): string {
   if (context.measureText(text).width <= width) return text;
 
   let fitted = "";
@@ -189,14 +213,9 @@ function fitText(context: CanvasRenderingContext2D, text: string, width: number)
   return `${fitted.trimEnd()}…`;
 }
 
-export function drawShareCard(canvas: HTMLCanvasElement, snapshot: ShareTrack, preferences: SharePreferences, { cover, artistPhoto, albumScrobbles, artworkColors, backgroundPresets }: ShareCardResources): void {
+export function drawShareCard<Image extends CardImage>(context: CardContext<Image>, snapshot: ShareTrack, preferences: SharePreferences, { cover, artistPhoto, albumScrobbles, artworkColors, backgroundPresets }: ShareCardResources<Image>, blurFallback?: (photo: Image) => void): void {
   const { format, background, backgroundColor, blur, color, show } = preferences;
   const { width, height, coverTop, coverSize, titleY, artistY, albumY, footerY } = SHARE_FORMATS[format];
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("The card preview is unavailable in this browser.");
-
   const solidColor = background === "solid" ? backgroundColor : null;
   const gradientColor = background === "gradient"
     ? backgroundColor ?? (color === "artwork" && cover ? backgroundPresets[0] : "#50566c")
@@ -213,7 +232,7 @@ export function drawShareCard(canvas: HTMLCanvasElement, snapshot: ShareTrack, p
   context.fillRect(0, 0, width, height);
   const photo = background === "artist" ? artistPhoto : background === "album" ? cover : null;
   if (photo) {
-    drawBackgroundPhoto(context, photo, width, height, blur);
+    drawBackgroundPhoto(context, photo, width, height, blur, blurFallback && (() => blurFallback(photo)));
     const shade = context.createLinearGradient(0, 0, 0, height);
     shade.addColorStop(0, "rgba(12, 12, 15, 0.72)");
     shade.addColorStop(0.27, "rgba(12, 12, 15, 0.42)");

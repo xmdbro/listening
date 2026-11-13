@@ -7,6 +7,11 @@ function isShareArtworkUrl(url: URL): boolean {
     (url.hostname === "lastfm.freetls.fastly.net" && /^\/i\/u\/[\w-]+\/[a-f0-9]+\.(?:avif|gif|jpe?g|png|webp)$/iu.test(url.pathname));
 }
 
+export function fetchShareArtwork(url: URL) {
+  if (!isShareArtworkUrl(url)) return Promise.resolve(null);
+  return fetchRasterImage(url.href, (source, options) => fetch(source, { ...options, redirect: "error" }));
+}
+
 export async function createShareArtworkResponse(request: Request): Promise<Response> {
   if (request.method !== "GET") {
     return new Response(null, { status: 405, headers: { Allow: "GET" } });
@@ -18,10 +23,7 @@ export async function createShareArtworkResponse(request: Request): Promise<Resp
     return new Response(null, { status: 400 });
   }
 
-  const image = await fetchRasterImage(url.href, (source, options) => fetch(source, {
-    ...options,
-    redirect: "error"
-  }));
+  const image = await fetchShareArtwork(url);
   if (!image) return new Response(null, { status: 404 });
 
   return new Response(image.bytes, {

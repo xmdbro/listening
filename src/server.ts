@@ -5,6 +5,7 @@ import { createCardResponse } from "../api/card.js";
 import { createNowPlayingResponse } from "../api/now-playing.js";
 import { createShareAlbumResponse } from "../api/share-album.js";
 import { createShareArtworkResponse } from "../api/share-artwork.js";
+import { createShareCardResponse } from "../api/share-card.js";
 import { createWeatherResponse } from "../api/weather.js";
 
 const port = Number(process.env.PORT) || 3000;
@@ -40,6 +41,11 @@ const server = createServer(async (request, response) => {
 
   if (pathname === "/api/share-album") {
     await send(await createShareAlbumResponse(new Request(url, { method: request.method })), response);
+    return;
+  }
+
+  if (pathname === "/share.png" || pathname === "/api/share-card") {
+    await send(await createShareCardResponse(new Request(url, { method: request.method })), response);
     return;
   }
 
