@@ -1,16 +1,45 @@
 import { useEffect, useRef, useState } from "react";
-import { drawShareCard, loadShareAlbumScrobbles, loadShareArtwork, shareStats, SHARE_FORMATS, type ShareCardResources, type ShareFormat, type ShareTrack } from "../share-card";
+import { backgroundPresets, cardColors, drawShareCard, loadShareAlbumScrobbles, loadShareArtwork, shareStats, SHARE_FORMATS, type ShareCardResources, type ShareTrack } from "../share-card";
+import {
+  defaultSharePreferences, loadSharePreferences, saveSharePreferences,
+  shareBackgrounds, shareColors, shareFormats, shareVisibility, type SharePreferences
+} from "../share-preferences";
+
+function ShareOptions<Value extends string>({ legend, name, options, value, onChange }: {
+  legend: string;
+  name: string;
+  options: Record<Value, string>;
+  value: Value;
+  onChange: (value: Value) => void;
+}): React.JSX.Element {
+  return (
+    <fieldset className="share-fieldset">
+      <legend>{legend}</legend>
+      <div className="share-option-grid">
+        {(Object.keys(options) as Value[]).map((option) => (
+          <label key={option}>
+            <input type="radio" name={name} value={option} checked={value === option} onChange={() => onChange(option)} />
+            {options[option]}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 
 export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; onClose: () => void }): React.JSX.Element {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [format, setFormat] = useState<ShareFormat>("square");
+  const [preferences, setPreferences] = useState(loadSharePreferences);
   const [resources, setResources] = useState<ShareCardResources | null>(null);
-  const [exported, setExported] = useState<{ format: ShareFormat; file: File } | null>(null);
+  const [exported, setExported] = useState<{ preferences: SharePreferences; file: File } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const { format, background, backgroundColor, blur, color, show } = preferences;
+  const presets = resources?.backgroundPresets ?? [];
+  const photoBackground = background === "artist" || background === "album";
   const dimensions = SHARE_FORMATS[format];
-  const file = exported?.format === format ? exported.file : null;
+  const file = exported?.preferences === preferences ? exported.file : null;
   const canShare = file && typeof navigator.share === "function" && navigator.canShare?.({ files: [file] });
 
   useEffect(() => {
@@ -37,7 +66,9 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
         document.fonts.load('400 25px "Source Code Pro"')
       ])
     ]).then(([cover, artistPhoto, albumScrobbles]) => {
-      if (!controller.signal.aborted) setResources({ cover, artistPhoto, albumScrobbles });
+      if (!controller.signal.aborted) {
+        setResources({ cover, artistPhoto, albumScrobbles, artworkColors: cardColors(cover), backgroundPresets: backgroundPresets(cover) });
+      }
     });
     return () => controller.abort();
   }, [snapshot]);
@@ -48,7 +79,7 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
 
     let active = true;
     try {
-      drawShareCard(canvas, snapshot, format, resources);
+      drawShareCard(canvas, snapshot, preferences, resources);
       canvas.toBlob((blob) => {
         if (!active) return;
         if (!blob) {
@@ -57,21 +88,22 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
         }
 
         const slug = snapshot.track.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 64).replace(/^-+|-+$/g, "");
-        const file = new File([blob], `listening-${slug || "track"}-${format}.png`, { type: "image/png" });
-        setExported({ format, file });
+        const file = new File([blob], `listening-${slug || "track"}-${preferences.format}.png`, { type: "image/png" });
+        setExported({ preferences, file });
       }, "image/png");
     } catch {
       setError("Couldn’t render this card. Try switching formats.");
     }
 
     return () => { active = false; };
-  }, [resources, format, snapshot]);
+  }, [resources, preferences, snapshot]);
 
-  function chooseFormat(next: ShareFormat): void {
-    if (next === format) return;
+  function updatePreferences(next: SharePreferences): void {
+    if (next === preferences) return;
     setExported(null);
     setError(null);
-    setFormat(next);
+    setPreferences(next);
+    saveSharePreferences(next);
   }
 
   function dismiss(): void {
@@ -109,11 +141,11 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
   }
 
   const imageDescription = [
-    snapshot.displayName,
-    snapshot.isPlaying ? "Now playing" : "Last played",
+    show.displayName && snapshot.displayName,
+    show.status && (snapshot.isPlaying ? "Now playing" : "Last played"),
     `${snapshot.track.name} by ${snapshot.track.artist}`,
-    snapshot.track.album,
-    ...shareStats(snapshot, resources?.albumScrobbles ?? null).map(({ description }) => description)
+    show.album && snapshot.track.album,
+    ...shareStats(snapshot, resources?.albumScrobbles ?? null, show).map(({ description }) => description)
   ].filter(Boolean).join(" · ");
 
   return (
@@ -134,25 +166,60 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
           <h1 id="share-title">Share track</h1>
           <button type="button" className="share-close" aria-label="Close share preview" onClick={dismiss}>×</button>
         </header>
-        <fieldset className="share-formats">
-          <legend>Image format</legend>
-          <div className="share-format-options">
-            {(Object.keys(SHARE_FORMATS) as ShareFormat[]).map((option) => (
-              <label key={option}>
-                <input type="radio" name="share-format" value={option} checked={format === option} onChange={() => chooseFormat(option)} />
-                {SHARE_FORMATS[option].label}
-              </label>
-            ))}
+        <ShareOptions legend="Image format" name="share-format" options={shareFormats} value={format} onChange={(format) => updatePreferences({ ...preferences, format })} />
+        <div className="share-editor">
+          <div className="share-preview" data-format={format} style={{ aspectRatio: `${dimensions.width} / ${dimensions.height}` }}>
+            {!resources && <span role="status">Preparing preview…</span>}
+            <canvas
+              ref={canvasRef}
+              hidden={!resources}
+              role="img"
+              aria-label={imageDescription}
+            />
           </div>
-        </fieldset>
-        <div className="share-preview" data-format={format} style={{ aspectRatio: `${dimensions.width} / ${dimensions.height}` }}>
-          {!resources && <span role="status">Preparing preview…</span>}
-          <canvas
-            ref={canvasRef}
-            hidden={!resources}
-            role="img"
-            aria-label={imageDescription}
-          />
+          <div className="share-customization">
+            <ShareOptions legend="Background" name="share-background" options={shareBackgrounds} value={background} onChange={(background) => updatePreferences({ ...preferences, background })} />
+            {photoBackground ? (
+              <label className="setting-toggle">
+                Blur background
+                <input type="checkbox" checked={blur} onChange={(event) => updatePreferences({ ...preferences, blur: event.target.checked })} />
+              </label>
+            ) : (
+              <fieldset className="share-fieldset">
+                <legend>Background color</legend>
+                <div className="share-background-colors">
+                  <div className="share-color-presets">
+                    <label className="share-color-swatch">
+                      <input type="radio" name="share-background-color" checked={backgroundColor === null} onChange={() => updatePreferences({ ...preferences, backgroundColor: null })} />
+                      Auto
+                    </label>
+                    {[...presets, "#000000"].map((preset, index) => (
+                      <label key={preset} className="share-color-swatch" style={{ backgroundColor: preset }} title={preset === "#000000" ? "Black" : preset}>
+                        <input type="radio" name="share-background-color" aria-label={preset === "#000000" ? "Black" : `Color preset ${index + 1} (${preset})`} checked={backgroundColor === preset} onChange={() => updatePreferences({ ...preferences, backgroundColor: preset })} />
+                      </label>
+                    ))}
+                  </div>
+                  <label className="share-custom-color">
+                    <span aria-hidden="true">Custom</span>
+                    <input type="color" aria-label="Custom background color" value={backgroundColor ?? presets[0] ?? "#171820"} onChange={(event) => updatePreferences({ ...preferences, backgroundColor: event.target.value })} />
+                  </label>
+                </div>
+              </fieldset>
+            )}
+            <ShareOptions legend="Color" name="share-color" options={shareColors} value={color} onChange={(color) => updatePreferences({ ...preferences, color })} />
+            <fieldset className="share-fieldset">
+              <legend>Show on card</legend>
+              <div className="share-visibility">
+                {(Object.keys(shareVisibility) as Array<keyof typeof shareVisibility>).map((key) => (
+                  <label key={key} className="setting-toggle">
+                    {shareVisibility[key]}
+                    <input type="checkbox" checked={show[key]} onChange={(event) => updatePreferences({ ...preferences, show: { ...show, [key]: event.target.checked } })} />
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <button type="button" onClick={() => updatePreferences(defaultSharePreferences)}>Reset to default</button>
+          </div>
         </div>
         <footer className="share-actions">
           <button type="button" className="primary share-download" onClick={download} disabled={!file}>Download PNG</button>

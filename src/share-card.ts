@@ -1,4 +1,7 @@
+import chroma from "chroma-js";
+import { getPaletteSync } from "colorthief";
 import { fallbackArtworkColors, paletteFromImage } from "./hooks/useArtworkColors";
+import { shareVisibility, type SharePreferences } from "./share-preferences";
 import type { Track } from "./types";
 
 export interface ShareTrack {
@@ -15,30 +18,30 @@ export interface ShareCardResources {
   cover: HTMLImageElement | null;
   artistPhoto: HTMLImageElement | null;
   albumScrobbles: number | null;
+  artworkColors: readonly [string, string];
+  backgroundPresets: readonly string[];
 }
 
 export const SHARE_FORMATS = {
-  square: { label: "Square", width: 1080, height: 1080, coverTop: 140, coverSize: 535, titleY: 766, artistY: 824, albumY: 870, footerY: 913 },
-  story: { label: "Story", width: 1080, height: 1920, coverTop: 320, coverSize: 880, titleY: 1305, artistY: 1380, albumY: 1433, footerY: 1492 }
+  square: { width: 1080, height: 1080, coverTop: 140, coverSize: 535, titleY: 766, artistY: 824, albumY: 870, footerY: 913 },
+  story: { width: 1080, height: 1920, coverTop: 320, coverSize: 880, titleY: 1305, artistY: 1380, albumY: 1433, footerY: 1492 }
 } as const;
-
-export type ShareFormat = keyof typeof SHARE_FORMATS;
 
 const sans = '"Open Sans", Arial, sans-serif';
 const mono = '"Source Code Pro", Consolas, monospace';
 const countFormatter = new Intl.NumberFormat();
 
-export function shareStats(snapshot: ShareTrack, albumScrobbles: number | null) {
+export function shareStats(snapshot: ShareTrack, albumScrobbles: number | null, show: SharePreferences["show"]) {
   const counts = [
-    { label: "Track plays", description: "of this track", count: snapshot.trackScrobbles },
-    { label: "Artist plays", description: "by this artist", count: snapshot.artistScrobbles },
-    { label: "Album plays", description: "of this album", count: albumScrobbles }
-  ];
+    { key: "trackPlays", description: "of this track", count: snapshot.trackScrobbles },
+    { key: "artistPlays", description: "by this artist", count: snapshot.artistScrobbles },
+    { key: "albumPlays", description: "of this album", count: albumScrobbles }
+  ] as const;
 
-  return counts.flatMap(({ label, description, count }) => {
-    if (count === null) return [];
+  return counts.flatMap(({ key, description, count }) => {
+    if (!show[key] || count === null) return [];
     const value = countFormatter.format(count);
-    return [{ label, value, description: `${value} ${count === 1 ? "play" : "plays"} ${description}` }];
+    return [{ label: shareVisibility[key], value, description: `${value} ${count === 1 ? "play" : "plays"} ${description}` }];
   });
 }
 
@@ -78,12 +81,36 @@ export async function loadShareArtwork(source: string, signal: AbortSignal): Pro
   }
 }
 
-function cardColors(image: HTMLImageElement | null): readonly [string, string] {
+export function cardColors(image: HTMLImageElement | null): readonly [string, string] {
   try {
     return image ? paletteFromImage(image) : fallbackArtworkColors;
   } catch {
     return fallbackArtworkColors;
   }
+}
+
+const darkBackground = "#171820";
+const fallbackBackgroundPresets = ["#536dce", "#9e387a", "#258479"];
+
+export function backgroundPresets(cover: HTMLImageElement | null): readonly string[] {
+  let colors: string[] = [];
+  try {
+    if (cover) {
+      const palette = getPaletteSync(cover, { colorCount: 4, ignoreWhite: false }) ?? [];
+      colors = [...palette]
+        .sort((left, right) => right.population - left.population)
+        .map((color) => color.hex())
+        .filter((color) => color !== "#000000");
+    }
+  } catch {
+    // A cover that cannot be sampled still gets the default swatches.
+  }
+  return [...new Set([...colors, ...fallbackBackgroundPresets])].slice(0, 3);
+}
+
+function readableColor(foreground: string, background: string): string {
+  if (chroma.contrast(foreground, background) >= 4.5) return foreground;
+  return chroma.contrast("#ffffff", background) >= 4.5 ? "#ffffff" : "#000000";
 }
 
 function drawCroppedImage(context: CanvasRenderingContext2D, image: HTMLImageElement, x: number, y: number, width: number, height: number): void {
@@ -94,6 +121,30 @@ function drawCroppedImage(context: CanvasRenderingContext2D, image: HTMLImageEle
     image, (image.naturalWidth - sourceWidth) / 2, (image.naturalHeight - sourceHeight) / 2,
     sourceWidth, sourceHeight, x, y, width, height
   );
+}
+
+function drawBackgroundPhoto(context: CanvasRenderingContext2D, photo: HTMLImageElement, width: number, height: number, blur: boolean): void {
+  if (!blur) {
+    drawCroppedImage(context, photo, 0, 0, width, height);
+    return;
+  }
+
+  if (typeof context.filter === "string") {
+    const inset = 72;
+    context.save();
+    context.filter = "blur(24px)";
+    drawCroppedImage(context, photo, -inset, -inset, width + 2 * inset, height + 2 * inset);
+    context.restore();
+    return;
+  }
+
+  const sample = document.createElement("canvas");
+  sample.width = 24;
+  sample.height = Math.round(24 * height / width);
+  const sampleContext = sample.getContext("2d");
+  if (!sampleContext) return;
+  drawCroppedImage(sampleContext, photo, 0, 0, sample.width, sample.height);
+  context.drawImage(sample, 0, 0, width, height);
 }
 
 function drawCover(context: CanvasRenderingContext2D, image: HTMLImageElement | null, x: number, y: number, size: number): void {
@@ -138,27 +189,47 @@ function fitText(context: CanvasRenderingContext2D, text: string, width: number)
   return `${fitted.trimEnd()}…`;
 }
 
-export function drawShareCard(canvas: HTMLCanvasElement, snapshot: ShareTrack, format: ShareFormat, { cover, artistPhoto, albumScrobbles }: ShareCardResources): void {
+export function drawShareCard(canvas: HTMLCanvasElement, snapshot: ShareTrack, preferences: SharePreferences, { cover, artistPhoto, albumScrobbles, artworkColors, backgroundPresets }: ShareCardResources): void {
+  const { format, background, backgroundColor, blur, color, show } = preferences;
   const { width, height, coverTop, coverSize, titleY, artistY, albumY, footerY } = SHARE_FORMATS[format];
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("The card preview is unavailable in this browser.");
 
-  const [titleColor, artistColor] = cardColors(cover);
+  const solidColor = background === "solid" ? backgroundColor : null;
+  const gradientColor = background === "gradient"
+    ? backgroundColor ?? (color === "artwork" && cover ? backgroundPresets[0] : "#50566c")
+    : null;
+  const gradientStart = gradientColor ? chroma.mix(darkBackground, gradientColor, 0.86, "rgb").hex() : null;
+  const [titleColor, artistColor, primaryText, secondaryText] = [
+    ...(color === "artwork" ? artworkColors : fallbackArtworkColors),
+    ...fallbackArtworkColors
+  ].map((foreground) => solidColor ? readableColor(foreground, solidColor) : foreground);
   const margin = format === "story" ? 100 : 76;
   const contentWidth = width - margin * 2;
   const headerY = coverTop - 42;
-  context.fillStyle = "#171820";
+  context.fillStyle = solidColor ?? darkBackground;
   context.fillRect(0, 0, width, height);
-  const shade = context.createLinearGradient(0, 0, 0, height);
-  if (artistPhoto) {
-    drawCroppedImage(context, artistPhoto, 0, 0, width, height);
+  const photo = background === "artist" ? artistPhoto : background === "album" ? cover : null;
+  if (photo) {
+    drawBackgroundPhoto(context, photo, width, height, blur);
+    const shade = context.createLinearGradient(0, 0, 0, height);
     shade.addColorStop(0, "rgba(12, 12, 15, 0.72)");
     shade.addColorStop(0.27, "rgba(12, 12, 15, 0.42)");
     shade.addColorStop(artistY / height, "rgba(12, 12, 15, 0.87)");
     shade.addColorStop(1, "rgba(12, 12, 15, 0.95)");
-  } else {
+    context.fillStyle = shade;
+    context.fillRect(0, 0, width, height);
+  } else if (gradientColor && gradientStart) {
+    const gradient = context.createLinearGradient(0, 0, width * 0.55, height);
+    gradient.addColorStop(0, gradientStart);
+    gradient.addColorStop(0.55, chroma.mix(darkBackground, gradientColor, 0.48, "rgb").hex());
+    gradient.addColorStop(0.78, chroma.mix(darkBackground, gradientColor, 0.18, "rgb").hex());
+    gradient.addColorStop(1, "#0c0c0f");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+  } else if (background !== "solid") {
     const glowY = coverTop + coverSize / 3;
     const glow = context.createRadialGradient(width / 2, glowY, 32, width / 2, glowY, width * 0.72);
     const glowColor = cover ? artistColor : "#8186a3";
@@ -166,21 +237,31 @@ export function drawShareCard(canvas: HTMLCanvasElement, snapshot: ShareTrack, f
     glow.addColorStop(1, `${glowColor}00`);
     context.fillStyle = glow;
     context.fillRect(0, 0, width, height);
+    const shade = context.createLinearGradient(0, 0, 0, height);
     shade.addColorStop((coverTop + coverSize / 2) / height, "rgba(12, 12, 15, 0)");
     shade.addColorStop(1, "#0c0c0f");
+    context.fillStyle = shade;
+    context.fillRect(0, 0, width, height);
   }
-  context.fillStyle = shade;
-  context.fillRect(0, 0, width, height);
 
   drawCover(context, cover, (width - coverSize) / 2, coverTop, coverSize);
 
-  context.fillStyle = "#c4c4c4";
-  context.font = `400 27px ${mono}`;
-  context.fillText(snapshot.isPlaying ? "NOW PLAYING" : "LAST PLAYED", margin, headerY);
-  context.fillStyle = "#f7f7f7";
-  context.font = `400 32px ${sans}`;
-  context.textAlign = "right";
-  context.fillText(fitText(context, snapshot.displayName, contentWidth - 270), width - margin, headerY);
+  if (gradientStart) {
+    context.shadowColor = "rgba(0, 0, 0, 0.75)";
+    context.shadowBlur = 5;
+  }
+  if (show.status) {
+    context.fillStyle = secondaryText;
+    context.font = `400 27px ${mono}`;
+    context.fillText(snapshot.isPlaying ? "NOW PLAYING" : "LAST PLAYED", margin, headerY);
+  }
+  if (show.displayName) {
+    context.fillStyle = primaryText;
+    context.font = `400 32px ${sans}`;
+    context.textAlign = "right";
+    context.fillText(fitText(context, snapshot.displayName, show.status ? contentWidth - 270 : contentWidth), width - margin, headerY);
+  }
+  context.shadowColor = "transparent";
 
   context.textAlign = "left";
   const titleSize = format === "story" ? 76 : 68;
@@ -193,30 +274,32 @@ export function drawShareCard(canvas: HTMLCanvasElement, snapshot: ShareTrack, f
   context.font = `300 ${format === "story" ? 45 : 40}px ${sans}`;
   context.fillStyle = artistColor;
   context.fillText(fitText(context, snapshot.track.artist, contentWidth), margin, artistY);
-  if (snapshot.track.album) {
+  const showAlbum = show.album && Boolean(snapshot.track.album);
+  if (showAlbum) {
     context.font = `300 32px ${sans}`;
-    context.fillStyle = "#c4c4c4";
+    context.fillStyle = secondaryText;
     context.fillText(fitText(context, snapshot.track.album, contentWidth), margin, albumY);
   }
 
-  const stats = shareStats(snapshot, albumScrobbles);
+  const stats = shareStats(snapshot, albumScrobbles, show);
   if (stats.length) {
-    context.strokeStyle = "rgba(255, 255, 255, 0.2)";
+    const statsY = showAlbum ? footerY : albumY + 4;
+    context.strokeStyle = `${primaryText}33`;
     context.lineWidth = 2;
     context.beginPath();
-    context.moveTo(margin, footerY);
-    context.lineTo(width - margin, footerY);
+    context.moveTo(margin, statsY);
+    context.lineTo(width - margin, statsY);
     context.stroke();
 
     const columnWidth = contentWidth / stats.length;
     stats.forEach(({ label, value }, index) => {
       const x = margin + columnWidth * index;
       context.font = `400 42px ${sans}`;
-      context.fillStyle = "#f7f7f7";
-      context.fillText(value, x, footerY + 60, columnWidth - 24);
+      context.fillStyle = primaryText;
+      context.fillText(value, x, statsY + 60, columnWidth - 24);
       context.font = `400 25px ${mono}`;
-      context.fillStyle = "#c4c4c4";
-      context.fillText(label.toUpperCase(), x, footerY + 98);
+      context.fillStyle = secondaryText;
+      context.fillText(label.toUpperCase(), x, statsY + 98);
     });
   }
 }
