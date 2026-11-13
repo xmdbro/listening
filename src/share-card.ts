@@ -3,11 +3,18 @@ import type { Track } from "./types";
 
 export interface ShareTrack {
   track: Track;
+  artistImageUrl: string;
   username: string;
   displayName: string;
   isPlaying: boolean;
   artistScrobbles: number | null;
   trackScrobbles: number | null;
+}
+
+export interface ShareCardResources {
+  cover: HTMLImageElement | null;
+  artistPhoto: HTMLImageElement | null;
+  albumScrobbles: number | null;
 }
 
 export const SHARE_FORMATS = {
@@ -79,6 +86,16 @@ function cardColors(image: HTMLImageElement | null): readonly [string, string] {
   }
 }
 
+function drawCroppedImage(context: CanvasRenderingContext2D, image: HTMLImageElement, x: number, y: number, width: number, height: number): void {
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+  const sourceWidth = width / scale;
+  const sourceHeight = height / scale;
+  context.drawImage(
+    image, (image.naturalWidth - sourceWidth) / 2, (image.naturalHeight - sourceHeight) / 2,
+    sourceWidth, sourceHeight, x, y, width, height
+  );
+}
+
 function drawCover(context: CanvasRenderingContext2D, image: HTMLImageElement | null, x: number, y: number, size: number): void {
   context.save();
   context.beginPath();
@@ -92,8 +109,7 @@ function drawCover(context: CanvasRenderingContext2D, image: HTMLImageElement | 
   context.clip();
 
   if (image) {
-    const crop = Math.min(image.naturalWidth, image.naturalHeight);
-    context.drawImage(image, (image.naturalWidth - crop) / 2, (image.naturalHeight - crop) / 2, crop, crop, x, y, size, size);
+    drawCroppedImage(context, image, x, y, size, size);
   } else {
     context.textAlign = "center";
     context.textBaseline = "middle";
@@ -122,33 +138,41 @@ function fitText(context: CanvasRenderingContext2D, text: string, width: number)
   return `${fitted.trimEnd()}…`;
 }
 
-export function drawShareCard(canvas: HTMLCanvasElement, snapshot: ShareTrack, format: ShareFormat, artwork: HTMLImageElement | null, albumScrobbles: number | null): void {
+export function drawShareCard(canvas: HTMLCanvasElement, snapshot: ShareTrack, format: ShareFormat, { cover, artistPhoto, albumScrobbles }: ShareCardResources): void {
   const { width, height, coverTop, coverSize, titleY, artistY, albumY, footerY } = SHARE_FORMATS[format];
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("The card preview is unavailable in this browser.");
 
-  const [titleColor, artistColor] = cardColors(artwork);
+  const [titleColor, artistColor] = cardColors(cover);
   const margin = format === "story" ? 100 : 76;
   const contentWidth = width - margin * 2;
   const headerY = coverTop - 42;
-  const glow = context.createRadialGradient(width / 2, coverTop + coverSize / 3, 32, width / 2, coverTop + coverSize / 3, width * 0.72);
-  const glowColor = artwork ? artistColor : "#8186a3";
-  glow.addColorStop(0, `${glowColor}52`);
-  glow.addColorStop(1, `${glowColor}00`);
-
   context.fillStyle = "#171820";
   context.fillRect(0, 0, width, height);
-  context.fillStyle = glow;
-  context.fillRect(0, 0, width, height);
-  const shade = context.createLinearGradient(0, coverTop + coverSize / 2, 0, height);
-  shade.addColorStop(0, "rgba(12, 12, 15, 0)");
-  shade.addColorStop(1, "#0c0c0f");
+  const shade = context.createLinearGradient(0, 0, 0, height);
+  if (artistPhoto) {
+    drawCroppedImage(context, artistPhoto, 0, 0, width, height);
+    shade.addColorStop(0, "rgba(12, 12, 15, 0.72)");
+    shade.addColorStop(0.27, "rgba(12, 12, 15, 0.42)");
+    shade.addColorStop(artistY / height, "rgba(12, 12, 15, 0.87)");
+    shade.addColorStop(1, "rgba(12, 12, 15, 0.95)");
+  } else {
+    const glowY = coverTop + coverSize / 3;
+    const glow = context.createRadialGradient(width / 2, glowY, 32, width / 2, glowY, width * 0.72);
+    const glowColor = cover ? artistColor : "#8186a3";
+    glow.addColorStop(0, `${glowColor}52`);
+    glow.addColorStop(1, `${glowColor}00`);
+    context.fillStyle = glow;
+    context.fillRect(0, 0, width, height);
+    shade.addColorStop((coverTop + coverSize / 2) / height, "rgba(12, 12, 15, 0)");
+    shade.addColorStop(1, "#0c0c0f");
+  }
   context.fillStyle = shade;
   context.fillRect(0, 0, width, height);
 
-  drawCover(context, artwork, (width - coverSize) / 2, coverTop, coverSize);
+  drawCover(context, cover, (width - coverSize) / 2, coverTop, coverSize);
 
   context.fillStyle = "#c4c4c4";
   context.font = `400 27px ${mono}`;

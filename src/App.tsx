@@ -358,6 +358,7 @@ export default function App(): React.JSX.Element {
 
     setShareTrack({
       track: presentedData.track,
+      artistImageUrl: presentedData.artistImageUrl,
       username: presentedData.username,
       displayName: preferences.displayName.trim() || presentedData.username,
       isPlaying: presentedData.isPlaying,

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { drawShareCard, loadShareAlbumScrobbles, loadShareArtwork, shareStats, SHARE_FORMATS, type ShareFormat, type ShareTrack } from "../share-card";
+import { drawShareCard, loadShareAlbumScrobbles, loadShareArtwork, shareStats, SHARE_FORMATS, type ShareCardResources, type ShareFormat, type ShareTrack } from "../share-card";
 
 export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; onClose: () => void }): React.JSX.Element {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [format, setFormat] = useState<ShareFormat>("square");
-  const [resources, setResources] = useState<{ artwork: HTMLImageElement | null; albumScrobbles: number | null } | null>(null);
+  const [resources, setResources] = useState<ShareCardResources | null>(null);
   const [exported, setExported] = useState<{ format: ShareFormat; file: File } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
@@ -23,16 +23,21 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
 
   useEffect(() => {
     const controller = new AbortController();
+    const cover = loadShareArtwork(snapshot.track.imageUrl, controller.signal);
+    const artistPhoto = snapshot.artistImageUrl === snapshot.track.imageUrl
+      ? cover
+      : loadShareArtwork(snapshot.artistImageUrl, controller.signal);
     void Promise.all([
-      loadShareArtwork(snapshot.track.imageUrl, controller.signal),
+      cover,
+      artistPhoto,
       loadShareAlbumScrobbles(snapshot, controller.signal),
       Promise.allSettled([
         document.fonts.load('300 68px "Open Sans"'),
         document.fonts.load('400 42px "Open Sans"'),
         document.fonts.load('400 25px "Source Code Pro"')
       ])
-    ]).then(([artwork, albumScrobbles]) => {
-      if (!controller.signal.aborted) setResources({ artwork, albumScrobbles });
+    ]).then(([cover, artistPhoto, albumScrobbles]) => {
+      if (!controller.signal.aborted) setResources({ cover, artistPhoto, albumScrobbles });
     });
     return () => controller.abort();
   }, [snapshot]);
@@ -43,7 +48,7 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
 
     let active = true;
     try {
-      drawShareCard(canvas, snapshot, format, resources.artwork, resources.albumScrobbles);
+      drawShareCard(canvas, snapshot, format, resources);
       canvas.toBlob((blob) => {
         if (!active) return;
         if (!blob) {
