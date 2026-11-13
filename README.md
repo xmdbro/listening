@@ -31,10 +31,11 @@ The controls appear briefly when the page opens and reappear when the bottom-lef
 | `t` | Toggle time and date |  
 | `e` | Toggle extended Last.fm information |
 | `h` | Toggle the control menu |
-| `s` | Open or close Listening preferences |
+| `p` | Open or close Listening preferences |
+| `s` | Open the share track preview |
 | `Esc` | Close Listening preferences |
 
-Press `s` to open the preferences panel. Changes are applied after selecting *Save preferences* and persist in local storage.
+Press `p` to open the preferences panel. Changes are applied after selecting *Save preferences* and persist in local storage.
 
 Available preferences include:
 

@@ -48,7 +48,7 @@ export function SettingsPanel({ preferences, serverDefaultUsername, notice, onDi
 
       const target = event.target as HTMLElement | null;
       if (
-        event.key.toLowerCase() === "s"
+        event.key.toLowerCase() === "p"
         && !event.ctrlKey
         && !event.metaKey
         && !event.altKey
@@ -118,7 +118,7 @@ export function SettingsPanel({ preferences, serverDefaultUsername, notice, onDi
               <p className="settings-kicker">account · display · weather · time</p>
               <h1 id="settings-title">Listening preferences</h1>
             </div>
-            <span className="settings-shortcut">[s]</span>
+            <span className="settings-shortcut">[p]</span>
           </header>
 
           <div className="settings-scroll">

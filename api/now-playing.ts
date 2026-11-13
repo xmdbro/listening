@@ -33,7 +33,7 @@ export async function createNowPlayingResponse(request?: Request): Promise<Respo
         : status === 404
           ? "That Last.fm user could not be found."
           : code === "MISSING_LASTFM_USERNAME"
-            ? "Please enter a Last.fm username in Listening preferences [s]."
+            ? "Please enter a Last.fm username in Listening preferences [p]."
           : status === 503
             ? "Listening is not configured yet."
             : "Listening data is temporarily unavailable.";

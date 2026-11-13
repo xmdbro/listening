@@ -420,9 +420,15 @@ export default function App(): React.JSX.Element {
       if (target?.matches("input, textarea, select, [contenteditable='true']")) return;
       const key = event.key.toLowerCase();
 
-      if (key === "s") {
+      if (key === "p") {
         event.preventDefault();
         if (!settingsOpen) openSettings();
+        return;
+      }
+
+      if (key === "s" && track && !settingsOpen) {
+        event.preventDefault();
+        openShareTrack();
         return;
       }
 
@@ -533,11 +539,11 @@ export default function App(): React.JSX.Element {
                 <i className="fa-solid fa-question fa-fw" aria-hidden="true" /> [h]elp
               </button>
               <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={openSettings}>
-                <i className="fa-solid fa-sliders fa-fw" aria-hidden="true" /> [s] preferences
+                <i className="fa-solid fa-sliders fa-fw" aria-hidden="true" /> [p]references
               </button>
               {track && (
                 <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={openShareTrack}>
-                  <i className="fa-solid fa-share-nodes fa-fw" aria-hidden="true" /> share track
+                  <i className="fa-solid fa-share-nodes fa-fw" aria-hidden="true" /> [s]hare track
                 </button>
               )}
             </nav>
@@ -588,11 +594,11 @@ export default function App(): React.JSX.Element {
             [e] extended info
           </button>
           <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} onClick={openSettings}>
-            [s] preferences
+            [p] preferences
           </button>
           {track && (
             <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} onClick={openShareTrack}>
-              share track
+              [s] share track
             </button>
           )}
         </nav>
