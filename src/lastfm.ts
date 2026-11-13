@@ -37,6 +37,7 @@ interface LastFmPayload {
 
 interface LastFmInfoPayload {
   error?: unknown;
+  album?: { userplaycount?: unknown };
   artist?: { stats?: { userplaycount?: unknown } };
   track?: { userplaycount?: unknown; userloved?: unknown };
 }
@@ -60,6 +61,8 @@ const nowPlayingCache = new Map<string, NowPlayingCacheEntry>();
 const pendingNowPlaying = new Map<string, Promise<NowPlayingData>>();
 const detailedScrobblesCache = new Map<string, DetailedScrobblesCacheEntry>();
 const pendingDetailedScrobbles = new Map<string, Promise<DetailedScrobbles>>();
+const albumScrobblesCache = new Map<string, { count: number | null; expiresAt: number }>();
+const pendingAlbumScrobbles = new Map<string, Promise<number | null>>();
 
 function cacheKeyPart(value: string): string {
   return value.trim().toLocaleLowerCase();
@@ -93,8 +96,9 @@ function text(value: unknown): string {
 }
 
 function numberOrNull(value: unknown): number | null {
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return null;
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
 export function normalizeRecentTracks(
@@ -174,6 +178,30 @@ async function fetchInfo(
   } catch {
     return null;
   }
+}
+
+export async function getAlbumScrobbles(username: string, artist: string, album: string): Promise<number | null> {
+  const apiKey = process.env.LASTFM_API_KEY;
+  if (!apiKey) return null;
+
+  const key = [username, artist, album].map(cacheKeyPart).join("\u0000");
+  const cached = readCache(albumScrobblesCache, key);
+  if (cached && cached.expiresAt > Date.now()) return cached.count;
+
+  const pending = pendingAlbumScrobbles.get(key);
+  if (pending) return pending;
+
+  const request = fetchInfo({ method: "album.getInfo", api_key: apiKey, username, artist, album, autocorrect: "1", format: "json" }, fetch)
+    .then((payload) => {
+      const fresh = numberOrNull(payload?.album?.userplaycount);
+      const count = fresh ?? cached?.count ?? null;
+      const ttl = fresh === null ? INCOMPLETE_DETAILS_CACHE_TTL_MS : DETAILS_CACHE_TTL_MS;
+      writeBoundedCache(albumScrobblesCache, key, { count, expiresAt: Date.now() + ttl }, MAX_DETAILS_CACHE_ENTRIES);
+      return count;
+    })
+    .finally(() => pendingAlbumScrobbles.delete(key));
+  pendingAlbumScrobbles.set(key, request);
+  return request;
 }
 
 export async function fetchDetailedScrobbles({

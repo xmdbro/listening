@@ -29,26 +29,30 @@ function isTrustedArtworkUrl(value: string): boolean {
   }
 }
 
-export async function fetchImageDataUrl(
+export async function fetchRasterImage(
   url: string,
   fetcher: typeof fetch = fetch
-): Promise<string> {
-  if (!isTrustedArtworkUrl(url)) return "";
+): Promise<{ bytes: ArrayBuffer; contentType: string } | null> {
+  if (!isTrustedArtworkUrl(url)) return null;
 
   try {
     const response = await fetcher(url, { signal: AbortSignal.timeout(6_000) });
-    if (!response.ok) return "";
+    if (!response.ok) return null;
 
     const contentType = response.headers.get("content-type")?.split(";")[0] ?? "";
-    if (!SAFE_IMAGE_TYPES.has(contentType)) return "";
+    if (!SAFE_IMAGE_TYPES.has(contentType)) return null;
     const contentLength = Number(response.headers.get("content-length"));
-    if (Number.isFinite(contentLength) && contentLength > MAX_IMAGE_BYTES) return "";
-    const bytes = Buffer.from(await response.arrayBuffer());
-    if (bytes.length > MAX_IMAGE_BYTES) return "";
-    return `data:${contentType};base64,${bytes.toString("base64")}`;
+    if (Number.isFinite(contentLength) && contentLength > MAX_IMAGE_BYTES) return null;
+    const bytes = await response.arrayBuffer();
+    return bytes.byteLength <= MAX_IMAGE_BYTES ? { bytes, contentType } : null;
   } catch {
-    return "";
+    return null;
   }
+}
+
+export async function fetchImageDataUrl(url: string, fetcher: typeof fetch = fetch): Promise<string> {
+  const image = await fetchRasterImage(url, fetcher);
+  return image ? `data:${image.contentType};base64,${Buffer.from(image.bytes).toString("base64")}` : "";
 }
 
 export function getEmbeddedImage(url: string): Promise<string> {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { ShareTrackDialog } from "./components/ShareTrackDialog";
 import { useArtworkColors } from "./hooks/useArtworkColors";
 import { useNowPlaying } from "./hooks/useNowPlaying";
 import { useTrackTransition } from "./hooks/useTrackTransition";
@@ -14,6 +15,7 @@ import {
   type Feature,
   type Preferences
 } from "./preferences";
+import type { ShareTrack } from "./share-card";
 import { formatListeningStatus } from "./svg";
 import type { NowPlayingData } from "./types";
 import { weatherIconClass } from "./weather";
@@ -301,12 +303,14 @@ export default function App(): React.JSX.Element {
   const transition = useTrackTransition(data);
   const [firstVisit] = useState(() => !hasVisited());
   const [settingsOpen, setSettingsOpen] = useState(firstVisit);
+  const [shareTrack, setShareTrack] = useState<ShareTrack | null>(null);
   const [settingsNotice, setSettingsNotice] = useState<string | null>(firstVisit
     ? "Welcome! Choose a Last.fm account, or leave it blank to use the server default."
     : null);
   const promptedForUsername = useRef(false);
   const [helpVisible, setHelpVisible] = useState(true);
   const [helpHovered, setHelpHovered] = useState(false);
+  const [helpFocused, setHelpFocused] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileMenuVisible, setMobileMenuVisible] = useState(true);
   const [cursorHidden, setCursorHidden] = useState(false);
@@ -318,7 +322,7 @@ export default function App(): React.JSX.Element {
   const presentedData = transition.current;
   const track = presentedData?.track ?? null;
   const colors = useArtworkColors(track?.imageUrl);
-  const controlsVisible = helpVisible || helpHovered;
+  const controlsVisible = helpVisible || helpHovered || helpFocused || shareTrack !== null;
 
   const displayStyle = useMemo<React.CSSProperties>(() => ({
     "--title-color": colors[0],
@@ -347,6 +351,19 @@ export default function App(): React.JSX.Element {
     markVisited();
     setSettingsOpen(false);
     setSettingsNotice(null);
+  }
+
+  function openShareTrack(): void {
+    if (!presentedData?.track || settingsOpen) return;
+
+    setShareTrack({
+      track: presentedData.track,
+      username: presentedData.username,
+      displayName: preferences.displayName.trim() || presentedData.username,
+      isPlaying: presentedData.isPlaying,
+      artistScrobbles: presentedData.artistScrobbles,
+      trackScrobbles: presentedData.trackScrobbles
+    });
   }
 
   useEffect(() => {
@@ -398,7 +415,7 @@ export default function App(): React.JSX.Element {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
-      if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
+      if (shareTrack || event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
       const target = event.target as HTMLElement | null;
       if (target?.matches("input, textarea, select, [contenteditable='true']")) return;
       const key = event.key.toLowerCase();
@@ -437,7 +454,7 @@ export default function App(): React.JSX.Element {
 
   return (
     <div
-      className={`listening background-${preferences.backgroundType} ${preferences.blurBackground ? "background-blurred" : ""} ${cursorHidden && !settingsOpen ? "cursor-hidden" : ""} ${transition.transitioning ? "track-transitioning" : ""}`}
+      className={`listening background-${preferences.backgroundType} ${preferences.blurBackground ? "background-blurred" : ""} ${cursorHidden && !settingsOpen && !shareTrack ? "cursor-hidden" : ""} ${transition.transitioning ? "track-transitioning" : ""}`}
       style={displayStyle}
     >
       <div className="background-stack" aria-hidden="true">
@@ -487,6 +504,10 @@ export default function App(): React.JSX.Element {
             className="corner left controls-corner"
             onPointerEnter={() => setHelpHovered(true)}
             onPointerLeave={() => setHelpHovered(false)}
+            onFocus={() => setHelpFocused(true)}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget)) setHelpFocused(false);
+            }}
           >
             <nav className={`help code fade ${controlsVisible ? "visible" : "hidden"}`} aria-label="Display controls" aria-hidden={!controlsVisible}>
               <div className="links">
@@ -514,6 +535,11 @@ export default function App(): React.JSX.Element {
               <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={openSettings}>
                 <i className="fa-solid fa-sliders fa-fw" aria-hidden="true" /> [s] preferences
               </button>
+              {track && (
+                <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={openShareTrack}>
+                  <i className="fa-solid fa-share-nodes fa-fw" aria-hidden="true" /> share track
+                </button>
+              )}
             </nav>
           </div>
 
@@ -564,6 +590,11 @@ export default function App(): React.JSX.Element {
           <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} onClick={openSettings}>
             [s] preferences
           </button>
+          {track && (
+            <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} onClick={openShareTrack}>
+              share track
+            </button>
+          )}
         </nav>
         <button
           type="button"
@@ -588,6 +619,7 @@ export default function App(): React.JSX.Element {
           onSave={applyPreferences}
         />
       )}
+      {shareTrack && <ShareTrackDialog snapshot={shareTrack} onClose={() => setShareTrack(null)} />}
     </div>
   );
 }
