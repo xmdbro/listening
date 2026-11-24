@@ -4,6 +4,10 @@
     {
       "source": "/now.svg",
       "destination": "/api/card"
+    },
+    {
+      "source": "/share.png",
+      "destination": "/api/share-card"
     }
   ]
 }

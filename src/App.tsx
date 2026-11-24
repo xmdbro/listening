@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { EmbedCardDialog } from "./components/EmbedCardDialog";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { ShareTrackDialog } from "./components/ShareTrackDialog";
 import { useArtworkColors } from "./hooks/useArtworkColors";
 import { useNowPlaying } from "./hooks/useNowPlaying";
 import { useTrackTransition } from "./hooks/useTrackTransition";
@@ -14,6 +16,7 @@ import {
   type Feature,
   type Preferences
 } from "./preferences";
+import type { ShareTrack } from "./share-card";
 import { formatListeningStatus } from "./svg";
 import type { NowPlayingData } from "./types";
 import { weatherIconClass } from "./weather";
@@ -301,12 +304,15 @@ export default function App(): React.JSX.Element {
   const transition = useTrackTransition(data);
   const [firstVisit] = useState(() => !hasVisited());
   const [settingsOpen, setSettingsOpen] = useState(firstVisit);
+  const [shareTrack, setShareTrack] = useState<ShareTrack | null>(null);
+  const [embedOpen, setEmbedOpen] = useState(false);
   const [settingsNotice, setSettingsNotice] = useState<string | null>(firstVisit
     ? "Welcome! Choose a Last.fm account, or leave it blank to use the server default."
     : null);
   const promptedForUsername = useRef(false);
   const [helpVisible, setHelpVisible] = useState(true);
   const [helpHovered, setHelpHovered] = useState(false);
+  const [helpFocused, setHelpFocused] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileMenuVisible, setMobileMenuVisible] = useState(true);
   const [cursorHidden, setCursorHidden] = useState(false);
@@ -318,7 +324,8 @@ export default function App(): React.JSX.Element {
   const presentedData = transition.current;
   const track = presentedData?.track ?? null;
   const colors = useArtworkColors(track?.imageUrl);
-  const controlsVisible = helpVisible || helpHovered;
+  const cardDialogOpen = shareTrack !== null || embedOpen;
+  const controlsVisible = helpVisible || helpHovered || helpFocused || cardDialogOpen;
 
   const displayStyle = useMemo<React.CSSProperties>(() => ({
     "--title-color": colors[0],
@@ -349,13 +356,31 @@ export default function App(): React.JSX.Element {
     setSettingsNotice(null);
   }
 
+  function openShareTrack(): void {
+    if (!presentedData?.track || settingsOpen || cardDialogOpen) return;
+
+    setShareTrack({
+      track: presentedData.track,
+      artistImageUrl: presentedData.artistImageUrl,
+      username: presentedData.username,
+      displayName: preferences.displayName.trim() || presentedData.username,
+      isPlaying: presentedData.isPlaying,
+      artistScrobbles: presentedData.artistScrobbles,
+      trackScrobbles: presentedData.trackScrobbles
+    });
+  }
+
+  function openEmbed(): void {
+    if (!settingsOpen && !cardDialogOpen) setEmbedOpen(true);
+  }
+
   useEffect(() => {
-    if (!requiresUsername || preferences.lastFmUsername.trim() || promptedForUsername.current) return;
+    if (!requiresUsername || preferences.lastFmUsername.trim() || promptedForUsername.current || cardDialogOpen) return;
     promptedForUsername.current = true;
     setMobileMenuOpen(false);
     setSettingsNotice("No server default is set. Enter a Last.fm username to start listening.");
     setSettingsOpen(true);
-  }, [requiresUsername, preferences.lastFmUsername]);
+  }, [requiresUsername, preferences.lastFmUsername, cardDialogOpen]);
 
   useEffect(() => {
     const initialFade = window.setTimeout(() => setHelpVisible(false), 3_600);
@@ -398,14 +423,26 @@ export default function App(): React.JSX.Element {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
-      if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
+      if (cardDialogOpen || event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
       const target = event.target as HTMLElement | null;
       if (target?.matches("input, textarea, select, [contenteditable='true']")) return;
       const key = event.key.toLowerCase();
 
-      if (key === "s") {
+      if (key === "p") {
         event.preventDefault();
         if (!settingsOpen) openSettings();
+        return;
+      }
+
+      if (key === "s" && track && !settingsOpen) {
+        event.preventDefault();
+        openShareTrack();
+        return;
+      }
+
+      if (key === "c" && !settingsOpen) {
+        event.preventDefault();
+        openEmbed();
         return;
       }
 
@@ -437,7 +474,7 @@ export default function App(): React.JSX.Element {
 
   return (
     <div
-      className={`listening background-${preferences.backgroundType} ${preferences.blurBackground ? "background-blurred" : ""} ${cursorHidden && !settingsOpen ? "cursor-hidden" : ""} ${transition.transitioning ? "track-transitioning" : ""}`}
+      className={`listening background-${preferences.backgroundType} ${preferences.blurBackground ? "background-blurred" : ""} ${cursorHidden && !settingsOpen && !cardDialogOpen ? "cursor-hidden" : ""} ${transition.transitioning ? "track-transitioning" : ""}`}
       style={displayStyle}
     >
       <div className="background-stack" aria-hidden="true">
@@ -487,6 +524,10 @@ export default function App(): React.JSX.Element {
             className="corner left controls-corner"
             onPointerEnter={() => setHelpHovered(true)}
             onPointerLeave={() => setHelpHovered(false)}
+            onFocus={() => setHelpFocused(true)}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget)) setHelpFocused(false);
+            }}
           >
             <nav className={`help code fade ${controlsVisible ? "visible" : "hidden"}`} aria-label="Display controls" aria-hidden={!controlsVisible}>
               <div className="links">
@@ -512,7 +553,15 @@ export default function App(): React.JSX.Element {
                 <i className="fa-solid fa-question fa-fw" aria-hidden="true" /> [h]elp
               </button>
               <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={openSettings}>
-                <i className="fa-solid fa-sliders fa-fw" aria-hidden="true" /> [s] preferences
+                <i className="fa-solid fa-sliders fa-fw" aria-hidden="true" /> [p]references
+              </button>
+              {track && (
+                <button type="button" tabIndex={controlsVisible ? 0 : -1} onClick={openShareTrack}>
+                  <i className="fa-solid fa-share-nodes fa-fw" aria-hidden="true" /> [s]hare track
+                </button>
+              )}
+              <button type="button" tabIndex={controlsVisible ? 0 : -1} aria-keyshortcuts="C" onClick={openEmbed}>
+                <i className="fa-solid fa-code fa-fw" aria-hidden="true" /> [c]ustomise embed
               </button>
             </nav>
           </div>
@@ -562,7 +611,15 @@ export default function App(): React.JSX.Element {
             [e] extended info
           </button>
           <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} onClick={openSettings}>
-            [s] preferences
+            [p] preferences
+          </button>
+          {track && (
+            <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} onClick={openShareTrack}>
+              [s] share track
+            </button>
+          )}
+          <button type="button" tabIndex={mobileMenuOpen ? 0 : -1} aria-keyshortcuts="C" onClick={openEmbed}>
+            [c]ustomise embed
           </button>
         </nav>
         <button
@@ -586,6 +643,16 @@ export default function App(): React.JSX.Element {
           }}
           onCancel={closeSettings}
           onSave={applyPreferences}
+        />
+      )}
+      {shareTrack && <ShareTrackDialog snapshot={shareTrack} onClose={() => setShareTrack(null)} />}
+      {embedOpen && (
+        <EmbedCardDialog
+          username={preferences.lastFmUsername.trim() || serverDefaultUsername || data?.username || ""}
+          displayName={preferences.displayName}
+          accountLoading={loading}
+          onClose={() => setEmbedOpen(false)}
+          onOpenPreferences={openSettings}
         />
       )}
     </div>
