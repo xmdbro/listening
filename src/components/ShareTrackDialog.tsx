@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { CardOptions } from "./CardOptions";
+import { useCardDialog } from "../hooks/useCardDialog";
 import { backgroundPresets, cardColors, drawSharePreview, loadShareAlbumScrobbles, loadShareArtwork, shareStats, SHARE_FORMATS, type ShareCardResources, type ShareTrack } from "../share-card";
 import { shareImageUrl } from "../share-link";
 import {
   defaultSharePreferences, loadSharePreferences, saveSharePreferences,
-  shareBackgrounds, shareColors, shareFormats, shareVisibility, type SharePreferences
+  shareBackgrounds, shareFormats, shareVisibility, type SharePreferences
 } from "../share-preferences";
 
 export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; onClose: () => void }): React.JSX.Element {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const { dialogRef, closing, dismiss } = useCardDialog("s", onClose);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [preferences, setPreferences] = useState(loadSharePreferences);
   const [resources, setResources] = useState<ShareCardResources | null>(null);
@@ -22,14 +23,6 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
   const file = exported?.preferences === preferences ? exported.file : null;
   const imageUrl = shareImageUrl(window.location.origin, snapshot, preferences);
   const currentCopy = copyResult?.url === imageUrl ? copyResult : null;
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    dialog.showModal();
-    return () => dialog.close();
-  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -88,11 +81,6 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
     saveSharePreferences(next);
   }
 
-  function dismiss(): void {
-    dialogRef.current?.close();
-    onClose();
-  }
-
   function download(): void {
     if (!file) return;
 
@@ -126,7 +114,7 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
   return (
     <dialog
       ref={dialogRef}
-      className="share-dialog"
+      className={`share-dialog${closing ? " closing" : ""}`}
       aria-labelledby="share-title"
       onCancel={(event) => {
         event.preventDefault();
@@ -136,10 +124,10 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
         if (event.target === event.currentTarget) dismiss();
       }}
     >
-      <div className="share-dialog-content">
+      <div className="share-dialog-content" inert={closing}>
         <header className="share-header">
           <h1 id="share-title">Share track</h1>
-          <button type="button" className="share-close" aria-label="Close share preview" onClick={dismiss}>×</button>
+          <span className="settings-shortcut">[S]</span>
         </header>
         <CardOptions legend="Image format" name="share-format" options={shareFormats} value={format} onChange={(format) => updatePreferences({ ...preferences, format })} />
         <div className="share-editor">
@@ -153,35 +141,39 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
             />
           </div>
           <div className="share-customization">
-            <CardOptions legend="Background" name="share-background" options={shareBackgrounds} value={background} onChange={(background) => updatePreferences({ ...preferences, background })} />
-            {photoBackground ? (
-              <label className="setting-toggle">
-                Blur background
-                <input type="checkbox" checked={blur} onChange={(event) => updatePreferences({ ...preferences, blur: event.target.checked })} />
-              </label>
-            ) : (
-              <fieldset className="share-fieldset">
-                <legend>Background color</legend>
-                <div className="share-background-colors">
-                  <div className="share-color-presets">
-                    <label className="share-color-swatch">
-                      <input type="radio" name="share-background-color" checked={backgroundColor === null} onChange={() => updatePreferences({ ...preferences, backgroundColor: null })} />
-                      Auto
-                    </label>
-                    {[...presets, "#000000"].map((preset, index) => (
-                      <label key={preset} className="share-color-swatch" style={{ backgroundColor: preset }} title={preset === "#000000" ? "Black" : preset}>
-                        <input type="radio" name="share-background-color" aria-label={preset === "#000000" ? "Black" : `Color preset ${index + 1} (${preset})`} checked={backgroundColor === preset} onChange={() => updatePreferences({ ...preferences, backgroundColor: preset })} />
+            <CardOptions legend="Background" name="share-background" options={shareBackgrounds} value={background} onChange={(background) => updatePreferences({ ...preferences, background })}>
+              {photoBackground ? (
+                <label className="setting-toggle">
+                  Blur background
+                  <input type="checkbox" checked={blur} onChange={(event) => updatePreferences({ ...preferences, blur: event.target.checked })} />
+                </label>
+              ) : (
+                <fieldset className="share-fieldset share-background-color-options">
+                  <legend>Background color</legend>
+                  <div className="share-background-colors">
+                    <div className="share-color-presets">
+                      <label className="share-color-swatch">
+                        <input type="radio" name="share-background-color" checked={backgroundColor === null} onChange={() => updatePreferences({ ...preferences, backgroundColor: null })} />
+                        Auto
                       </label>
-                    ))}
+                      {[...presets, "#000000"].map((preset, index) => (
+                        <label key={preset} className="share-color-swatch" style={{ backgroundColor: preset }} title={preset === "#000000" ? "Black" : preset}>
+                          <input type="radio" name="share-background-color" aria-label={preset === "#000000" ? "Black" : `Color preset ${index + 1} (${preset})`} checked={backgroundColor === preset} onChange={() => updatePreferences({ ...preferences, backgroundColor: preset })} />
+                        </label>
+                      ))}
+                    </div>
+                    <label className="share-custom-color">
+                      <span aria-hidden="true">Custom</span>
+                      <input type="color" aria-label="Custom background color" value={backgroundColor ?? presets[0] ?? "#171820"} onChange={(event) => updatePreferences({ ...preferences, backgroundColor: event.target.value })} />
+                    </label>
                   </div>
-                  <label className="share-custom-color">
-                    <span aria-hidden="true">Custom</span>
-                    <input type="color" aria-label="Custom background color" value={backgroundColor ?? presets[0] ?? "#171820"} onChange={(event) => updatePreferences({ ...preferences, backgroundColor: event.target.value })} />
-                  </label>
-                </div>
-              </fieldset>
-            )}
-            <CardOptions legend="Color" name="share-color" options={shareColors} value={color} onChange={(color) => updatePreferences({ ...preferences, color })} />
+                </fieldset>
+              )}
+              <label className="setting-toggle">
+                Artwork colors
+                <input type="checkbox" checked={color === "artwork"} onChange={(event) => updatePreferences({ ...preferences, color: event.target.checked ? "artwork" : "neutral" })} />
+              </label>
+            </CardOptions>
             <fieldset className="share-fieldset">
               <legend>Show on card</legend>
               <div className="share-visibility">

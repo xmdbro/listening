@@ -366,8 +366,13 @@ h2 {
 }
 
 .share-dialog {
-  width: min(34rem, calc(100% - 1.5rem));
-  max-height: calc(100dvh - 1.5rem);
+  position: fixed;
+  inset: 0 1.5rem 0 auto;
+  width: min(34rem, calc(100% - 3rem));
+  max-width: none;
+  height: fit-content;
+  max-height: calc(100dvh - 3rem);
+  margin: auto 0;
   padding: 0;
   overflow: auto;
   overscroll-behavior: contain;
@@ -382,13 +387,6 @@ h2 {
 .share-header,
 .share-actions {
   padding: 0.9rem clamp(1rem, 4vw, 1.5rem);
-}
-
-.share-header .share-close {
-  min-width: 2.75rem;
-  min-height: 2.75rem;
-  padding: 0;
-  font-size: 1.4rem;
 }
 
 .share-fieldset {
@@ -464,6 +462,10 @@ h2 {
 
 .share-background-colors {
   justify-content: space-between;
+}
+
+.share-background-color-options {
+  margin-top: 0.9rem;
 }
 
 .share-color-swatch {
@@ -558,7 +560,7 @@ h2 {
 
 @media (min-width: 760px) {
   .share-dialog {
-    width: min(58rem, calc(100% - 1.5rem));
+    width: min(58rem, calc(100% - 3rem));
   }
 
   .share-editor {
@@ -621,7 +623,7 @@ h2 {
 }
 
 .share-dialog.embed-dialog {
-  width: min(43rem, calc(100% - 1.5rem));
+  width: min(43rem, calc(100% - 3rem));
 }
 
 .embed-body {
@@ -853,6 +855,7 @@ h2 {
 .share-dialog::backdrop {
   background: rgba(5, 5, 7, 0.34);
   backdrop-filter: blur(18px) brightness(0.58);
+  animation: settings-backdrop-in 0.24s ease-out both;
 }
 
 .settings-backdrop {
@@ -863,11 +866,14 @@ h2 {
   padding: 1.5rem;
   align-items: center;
   justify-content: flex-end;
-  animation: settings-backdrop-in 0.24s ease-out both;
 }
 
 .settings-backdrop.closing {
   pointer-events: none;
+}
+
+.settings-backdrop.closing,
+.share-dialog.closing::backdrop {
   animation: settings-backdrop-out 0.22s ease-in both;
 }
 
@@ -947,10 +953,15 @@ h2 {
   width: min(44rem, 100%);
   max-height: calc(100dvh - 3rem);
   overflow: hidden;
+}
+
+.settings-panel,
+.share-dialog[open] {
   animation: settings-panel-in 0.24s ease-out both;
 }
 
-.settings-panel.closing {
+.settings-panel.closing,
+.share-dialog.closing {
   animation: settings-panel-out 0.22s ease-in both;
 }
 
@@ -1642,7 +1653,8 @@ h2 {
     align-items: flex-end;
   }
 
-  .settings-panel {
+  .settings-panel,
+  .share-dialog[open] {
     width: 100%;
     height: 100dvh;
     max-height: none;
@@ -1652,7 +1664,14 @@ h2 {
     animation-name: settings-mobile-in;
   }
 
-  .settings-panel.closing {
+  .share-dialog[open] {
+    inset: 0;
+    margin: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  .settings-panel.closing,
+  .share-dialog.closing {
     animation-name: settings-mobile-out;
   }
 
@@ -1672,7 +1691,8 @@ h2 {
     padding-bottom: 1rem;
   }
 
-  .settings-header h1 {
+  .settings-header h1,
+  .share-header h1 {
     font-size: 1.4rem;
   }
 
@@ -1789,4 +1809,7 @@ h2 {
     transition-duration: 0.01ms !important;
   }
 
+  .share-dialog::backdrop {
+    animation: none;
+  }
 }

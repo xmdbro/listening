@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   defaultEmbedOptions, embedCardUrl, embedDimensions, embedSnippet, embedVisibility, embedWidths,
   maxEmbedWidth, parseEmbedWidth
 } from "../embed-card";
 import { CardOptions } from "./CardOptions";
+import { useCardDialog } from "../hooks/useCardDialog";
 
 const backgroundOptions = { artwork: "Artwork", solid: "Solid colour" };
 const defaultBackground = "#171820";
@@ -25,7 +26,7 @@ export function EmbedCardDialog({ username, displayName, accountLoading, onClose
   onClose: () => void;
   onOpenPreferences: () => void;
 }): React.JSX.Element {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const { dialogRef, closing, dismiss } = useCardDialog("c", onClose);
   const [options, setOptions] = useState(defaultEmbedOptions);
   const [widthInput, setWidthInput] = useState(String(defaultEmbedOptions.width));
   const [solidColour, setSolidColour] = useState(defaultBackground);
@@ -41,13 +42,6 @@ export function EmbedCardDialog({ username, displayName, accountLoading, onClose
   const currentPreview = preview?.request === request ? preview : null;
   const { width, height } = embedDimensions(options.width);
   const hasSolidBackground = options.backgroundColor !== null;
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    dialog.showModal();
-    return () => dialog.close();
-  }, []);
 
   useEffect(() => {
     if (!request.url) return;
@@ -88,16 +82,6 @@ export function EmbedCardDialog({ username, displayName, accountLoading, onClose
     };
   }, [request]);
 
-  function dismiss(): void {
-    dialogRef.current?.close();
-    onClose();
-  }
-
-  function openPreferences(): void {
-    dismiss();
-    onOpenPreferences();
-  }
-
   function updateWidth(input: string): void {
     setWidthInput(input);
     const width = parseEmbedWidth(input);
@@ -116,7 +100,7 @@ export function EmbedCardDialog({ username, displayName, accountLoading, onClose
   return (
     <dialog
       ref={dialogRef}
-      className="share-dialog embed-dialog"
+      className={`share-dialog embed-dialog${closing ? " closing" : ""}`}
       aria-labelledby="embed-title"
       onCancel={(event) => {
         event.preventDefault();
@@ -126,10 +110,10 @@ export function EmbedCardDialog({ username, displayName, accountLoading, onClose
         if (event.target === event.currentTarget) dismiss();
       }}
     >
-      <div className="share-dialog-content">
+      <div className="share-dialog-content" inert={closing}>
         <header className="share-header">
           <h1 id="embed-title">Customise embed</h1>
-          <button type="button" className="share-close" aria-label="Close embed customiser" onClick={dismiss}>×</button>
+          <span className="settings-shortcut">[C]</span>
         </header>
 
         {username ? (
@@ -153,7 +137,7 @@ export function EmbedCardDialog({ username, displayName, accountLoading, onClose
                   <>
                     <p role="alert">{currentPreview.error}</p>
                     {currentPreview.accountError
-                      ? <button type="button" onClick={openPreferences}>Open preferences</button>
+                      ? <button type="button" onClick={() => dismiss(onOpenPreferences)}>Open preferences</button>
                       : <button type="button" onClick={() => setAttempt((value) => value + 1)}>Retry</button>}
                   </>
                 ) : <p role="status">Loading card preview…</p>}
@@ -253,7 +237,7 @@ export function EmbedCardDialog({ username, displayName, accountLoading, onClose
             {accountLoading ? <p role="status">Checking for a Last.fm account…</p> : (
               <>
                 <p>Choose a Last.fm account in preferences to create an embed.</p>
-                <button type="button" onClick={openPreferences}>Open preferences</button>
+                <button type="button" onClick={() => dismiss(onOpenPreferences)}>Open preferences</button>
               </>
             )}
           </div>
