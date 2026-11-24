@@ -262,11 +262,16 @@ export function EmbedCardDialog({ username, displayName, accountLoading, onClose
         {username && (
           <footer className="share-actions embed-actions">
             <p className="share-copy-status" role="status">{currentCopy?.copied ? `${format} copied.` : ""}</p>
-            <div className="embed-format" role="group" aria-label="Embed code format">
+            <select
+              className="embed-format"
+              aria-label="Embed code format"
+              value={format}
+              onChange={(event) => setFormat(event.currentTarget.value === "Markdown" ? "Markdown" : "HTML")}
+            >
               {formats.map((option) => (
-                <button key={option} type="button" className="embed-choice" aria-pressed={format === option} onClick={() => setFormat(option)}>{option}</button>
+                <option key={option} value={option}>{option}</option>
               ))}
-            </div>
+            </select>
             <button type="button" className="primary" disabled={invalidWidth || !currentPreview || !("src" in currentPreview)} onClick={() => void copyCode()}>Copy embed code</button>
           </footer>
         )}

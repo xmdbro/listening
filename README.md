@@ -33,7 +33,8 @@ The controls appear briefly when the page opens and reappear when the bottom-lef
 | `h` | Toggle the control menu |
 | `p` | Open or close Listening preferences |
 | `s` | Open the share track preview |
-| `Esc` | Close Listening preferences |
+| `c` | Open the embed customiser |
+| `Esc` | Close the open dialog |
 
 Press `p` to open the preferences panel. Changes are applied after selecting *Save preferences* and persist in local storage.
 
@@ -46,13 +47,16 @@ Available preferences include:
 - Custom longitude and latitude for the weather.
 - 24-hour time, weekday, and seconds toggle display.
 
-## Share track cards
+## Share and embed cards
 
-Open **Share track** and customize the card. **Share image** copies a live PNG link with your chosen format, background, colors, and visible fields. Anyone with the link can see the selected account's current or most recent track and the details you chose to show. **Download PNG** saves the track shown in the preview.
+- In **Share track**, customize the card. **Download PNG** saves the preview. **Share image** copies a live PNG link.
+- In **Customise embed**, set the SVG size, colors, and visible details. **Copy embed code** copies HTML or Markdown.
+
+Live cards show the current or most recent track. Their public URLs include the Last.fm username.
 
 ## Endpoints
 
-Listening exposes several routes for websites, profile READMEs, and other integrations. They are intentionally not linked from the fullscreen display.
+Listening exposes several routes for websites, profile READMEs, and other integrations.
 
 | Route | Description |
 | --- | --- |
@@ -63,10 +67,13 @@ Listening exposes several routes for websites, profile READMEs, and other integr
 | `/now.svg` | Short alias for the SVG card |
 | `/now.svg?name=Lance` | SVG card with a public display-name override |
 | `/now.svg?user=xmdb&name=Lance` | SVG card with account and display-name overrides |
+| `/now.svg?user=xmdb&size=compact&show-plays=1` | 480 px SVG card with personal track plays |
+| `/now.svg?user=xmdb&width=550` | SVG card with a custom width |
 | `/share.png?user=xmdb&format=story&background=gradient` | Live PNG card with share preferences in the URL |
 
 The `user` query parameter selects the Last.fm account. When `LASTFM_USERNAME` is set, selecting a different account requires `ALLOW_CUSTOM_LASTFM_USERS=true`. If `user` is omitted or blank, the endpoint uses `LASTFM_USERNAME` when one is configured; otherwise it returns a prompt response instead of attempting a Last.fm request. The `name` parameter only changes the label rendered in a card. URL-encode names containing spaces.
 
+Both SVG endpoints default to the original 620 × 164 card with an artwork background. Use `size=standard|compact` or a whole-number `width` from 1 to 4096 pixels. SVG dimensions work in Markdown. Set `bg` (solid background) and `accent` (track title) to six-digit hex colors without `#`. Use `0` or `1` with `show-cover`, `show-name`, `show-status`, `show-album`, `show-total`, and `show-plays`. Only personal track plays are hidden by default.
 
 ## Configuration
 

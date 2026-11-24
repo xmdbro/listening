@@ -713,12 +713,6 @@ h2 {
   font: 0.72rem "Source Code Pro", monospace;
 }
 
-.embed-format {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
 .embed-width-field,
 .embed-colours {
   margin-top: 0.7rem;
@@ -781,6 +775,7 @@ h2 {
   margin-right: auto;
 }
 
+.embed-format,
 .embed-width input,
 .embed-colour-field input,
 .embed-code textarea {
@@ -791,6 +786,12 @@ h2 {
   color: #fff;
   background: rgba(0, 0, 0, 0.22);
   font: inherit;
+}
+
+.embed-format {
+  padding: 0.65rem;
+  font-size: 0.875rem;
+  cursor: pointer;
 }
 
 .embed-width input {
