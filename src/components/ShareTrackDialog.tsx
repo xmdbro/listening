@@ -1,32 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { CardOptions } from "./CardOptions";
 import { backgroundPresets, cardColors, drawSharePreview, loadShareAlbumScrobbles, loadShareArtwork, shareStats, SHARE_FORMATS, type ShareCardResources, type ShareTrack } from "../share-card";
 import { shareImageUrl } from "../share-link";
 import {
   defaultSharePreferences, loadSharePreferences, saveSharePreferences,
   shareBackgrounds, shareColors, shareFormats, shareVisibility, type SharePreferences
 } from "../share-preferences";
-
-function ShareOptions<Value extends string>({ legend, name, options, value, onChange }: {
-  legend: string;
-  name: string;
-  options: Record<Value, string>;
-  value: Value;
-  onChange: (value: Value) => void;
-}): React.JSX.Element {
-  return (
-    <fieldset className="share-fieldset">
-      <legend>{legend}</legend>
-      <div className="share-option-grid">
-        {(Object.keys(options) as Value[]).map((option) => (
-          <label key={option}>
-            <input type="radio" name={name} value={option} checked={value === option} onChange={() => onChange(option)} />
-            {options[option]}
-          </label>
-        ))}
-      </div>
-    </fieldset>
-  );
-}
 
 export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; onClose: () => void }): React.JSX.Element {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -162,7 +141,7 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
           <h1 id="share-title">Share track</h1>
           <button type="button" className="share-close" aria-label="Close share preview" onClick={dismiss}>×</button>
         </header>
-        <ShareOptions legend="Image format" name="share-format" options={shareFormats} value={format} onChange={(format) => updatePreferences({ ...preferences, format })} />
+        <CardOptions legend="Image format" name="share-format" options={shareFormats} value={format} onChange={(format) => updatePreferences({ ...preferences, format })} />
         <div className="share-editor">
           <div className="share-preview" data-format={format} style={{ aspectRatio: `${dimensions.width} / ${dimensions.height}` }}>
             {!resources && <span role="status">Preparing preview…</span>}
@@ -174,7 +153,7 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
             />
           </div>
           <div className="share-customization">
-            <ShareOptions legend="Background" name="share-background" options={shareBackgrounds} value={background} onChange={(background) => updatePreferences({ ...preferences, background })} />
+            <CardOptions legend="Background" name="share-background" options={shareBackgrounds} value={background} onChange={(background) => updatePreferences({ ...preferences, background })} />
             {photoBackground ? (
               <label className="setting-toggle">
                 Blur background
@@ -202,7 +181,7 @@ export function ShareTrackDialog({ snapshot, onClose }: { snapshot: ShareTrack; 
                 </div>
               </fieldset>
             )}
-            <ShareOptions legend="Color" name="share-color" options={shareColors} value={color} onChange={(color) => updatePreferences({ ...preferences, color })} />
+            <CardOptions legend="Color" name="share-color" options={shareColors} value={color} onChange={(color) => updatePreferences({ ...preferences, color })} />
             <fieldset className="share-fieldset">
               <legend>Show on card</legend>
               <div className="share-visibility">
