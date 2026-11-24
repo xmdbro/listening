@@ -32,8 +32,8 @@ The controls appear briefly when the page opens and reappear when the bottom-lef
 | `e` | Toggle extended Last.fm information |
 | `h` | Toggle the control menu |
 | `p` | Open or close Listening preferences |
-| `s` | Open the share track preview |
-| `c` | Open the embed customiser |
+| `s` | Open or close the share track preview |
+| `c` | Open or close the embed customiser |
 | `Esc` | Close the open dialog |
 
 Press `p` to open the preferences panel. Changes are applied after selecting *Save preferences* and persist in local storage.
