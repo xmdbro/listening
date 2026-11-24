@@ -20,7 +20,8 @@ type CardContext<Image extends CardImage> = Pick<CanvasRenderingContext2D,
   "fillStyle" | "strokeStyle" | "lineWidth" | "font" | "textAlign" | "textBaseline" |
   "shadowColor" | "shadowBlur" | "shadowOffsetY" | "filter" | "save" | "restore" | "beginPath" |
   "rect" | "clip" | "fill" | "stroke" | "fillRect" | "strokeRect" | "moveTo" | "lineTo" |
-  "createLinearGradient" | "createRadialGradient" | "measureText" | "fillText"
+  "createLinearGradient" | "createRadialGradient" | "measureText" | "fillText" |
+  "translate" | "scale" | "bezierCurveTo" | "closePath"
 > & {
   drawImage(image: NoInfer<Image>, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number): void;
 };
@@ -213,6 +214,41 @@ function fitText(context: Pick<CanvasRenderingContext2D, "measureText">, text: s
   return `${fitted.trimEnd()}…`;
 }
 
+function drawLastFmLogo<Image extends CardImage>(context: CardContext<Image>, x: number, y: number, width: number): void {
+  // Same Font Awesome Last.fm mark as public/favicon.svg (CC BY 4.0).
+  context.save();
+  context.translate(x, y);
+  context.scale(width / 512, width / 512);
+  context.translate(0, -113.8);
+  context.beginPath();
+  context.moveTo(225.8, 367.1);
+  context.lineTo(207, 316.1);
+  context.bezierCurveTo(207, 316.1, 176.5, 350.1, 130.8, 350.1);
+  context.bezierCurveTo(90.3, 350.1, 61.6, 314.9, 61.6, 258.6);
+  context.bezierCurveTo(61.6, 186.5, 98, 160.7, 133.7, 160.7);
+  context.bezierCurveTo(200.2, 160.7, 208.5, 214, 234.6, 295.6);
+  context.bezierCurveTo(253.4, 352.5, 288.6, 398.2, 390, 398.2);
+  context.bezierCurveTo(462.7, 398.2, 512, 375.9, 512, 317.3);
+  context.bezierCurveTo(512, 244.4, 449.3, 236.7, 397, 225.2);
+  context.bezierCurveTo(371.2, 219.3, 363.6, 208.8, 363.6, 191.2);
+  context.bezierCurveTo(363.6, 171.3, 379.4, 159.5, 405.2, 159.5);
+  context.bezierCurveTo(433.4, 159.5, 448.6, 170.1, 450.9, 195.3);
+  context.lineTo(509.5, 188.3);
+  context.bezierCurveTo(504.8, 135.5, 468.4, 113.8, 408.6, 113.8);
+  context.bezierCurveTo(355.8, 113.8, 304.2, 133.7, 304.2, 197.7);
+  context.bezierCurveTo(304.2, 237.6, 323.6, 262.8, 372.2, 274.5);
+  context.bezierCurveTo(417.1, 285.1, 452, 288.3, 452, 320.2);
+  context.bezierCurveTo(452, 341.9, 430.9, 350.7, 391, 350.7);
+  context.bezierCurveTo(331.8, 350.7, 307.1, 319.6, 293.1, 276.8);
+  context.bezierCurveTo(261.1, 180, 249.5, 113.8, 131.8, 113.8);
+  context.bezierCurveTo(45.7, 113.8, 0, 168.3, 0, 261);
+  context.bezierCurveTo(0, 350.1, 45.7, 398.2, 127.9, 398.2);
+  context.bezierCurveTo(194.1, 398.2, 225.8, 367.1, 225.8, 367.1);
+  context.closePath();
+  context.fill();
+  context.restore();
+}
+
 export function drawShareCard<Image extends CardImage>(context: CardContext<Image>, snapshot: ShareTrack, preferences: SharePreferences, { cover, artistPhoto, albumScrobbles, artworkColors, backgroundPresets }: ShareCardResources<Image>, blurFallback?: (photo: Image) => void): void {
   const { format, background, backgroundColor, blur, color, show } = preferences;
   const { width, height, coverTop, coverSize, titleY, artistY, albumY, footerY } = SHARE_FORMATS[format];
@@ -270,15 +306,19 @@ export function drawShareCard<Image extends CardImage>(context: CardContext<Imag
     context.shadowBlur = 5;
   }
   if (show.status) {
-    context.fillStyle = secondaryText;
+    context.fillStyle = primaryText;
     context.font = `400 27px ${mono}`;
-    context.fillText(snapshot.isPlaying ? "NOW PLAYING" : "LAST PLAYED", margin, headerY);
+    drawLastFmLogo(context, margin, headerY - 20, 36);
+    context.fillStyle = secondaryText;
+    context.fillText(snapshot.isPlaying ? "NOW PLAYING" : "LAST PLAYED", margin + 48, headerY);
   }
   if (show.displayName) {
     context.fillStyle = primaryText;
     context.font = `400 32px ${sans}`;
     context.textAlign = "right";
-    context.fillText(fitText(context, snapshot.displayName, show.status ? contentWidth - 270 : contentWidth), width - margin, headerY);
+    const nameWidth = show.status ? contentWidth - 270 : contentWidth;
+    const name = fitText(context, snapshot.displayName, nameWidth);
+    context.fillText(name, width - margin, headerY);
   }
   context.shadowColor = "transparent";
 
